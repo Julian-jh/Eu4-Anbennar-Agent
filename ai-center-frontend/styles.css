@@ -89,6 +89,12 @@ code,.ac-mono { font: .93em/1.5 "Cascadia Mono",Consolas,monospace; overflow-wra
 @media (prefers-reduced-motion: reduce) {
   .ac-nav svg,.ac-nav-label { transition: none; }
 }
+@media (hover:none) {
+  .ac-nav-label { pointer-events: none; }
+}
+@media (forced-colors:active) {
+  .ac-nav[aria-current="true"] { border: 2px solid Highlight; }
+}
 .ac-secondary-nav { display: flex; flex-wrap: wrap; padding: 8px var(--gutter); gap: 5px; background: #edf2ed; border-bottom: 1px solid var(--line); }
 .ac-subnav:hover { color: var(--forest); }
 .ac-subnav { border: 1px solid transparent; border-radius: 6px; background: transparent; padding: 5px 12px; color: var(--muted); font-size: .88rem; }

@@ -4,14 +4,14 @@
 
 ## Domains and subjects
 
-Give each published record one primary subject. Choose the subject that best answers “What would a player look this up to understand?” Add a secondary subject when the record directly explains another topic. A named country, province or reward can usually be represented by a relationship.
+A domain describes an area of gameplay. A subject describes a topic a player might investigate across several domains. Maintain each subject once and link it to the domains in which it is relevant. The table below lists suggested domain–subject pairs. Repeated subject names refer to the same subject ID.
 
 | Domain | Initial subjects | Example lookup |
 |---|---|---|
-| Governance & succession | Countries & names, Monarchs & reigns, Country formation, Government & estates, Internal stability | Which countries can I form? Who holds the throne? |
+| Governance & succession | Countries & names, Monarchs & reigns, Dynastic succession, Country formation, Government & estates, Internal stability | Which countries can I form? Who holds the throne? |
 | Land & expansion | Provinces & regions, Cores & administration, Development & buildings, Exploration & settlement | How can an adventuring company settle? |
 | Economy & trade | Treasury & debt, Goods & production, Trade networks | What increases my trade power in a node? |
-| Diplomacy & subjects | Relations & alliances, Subject states & unions, Coalitions | What kind of subject is a Soyurghal? |
+| Diplomacy & subjects | Relations & alliances, Subject states & unions, Dynastic succession, Coalitions | What kind of subject is a Soyurghal? |
 | Warfare | Recruitment & forces, Naval warfare, Battles & sieges, War goals & peace | What determines whether a siege progresses? |
 | Peoples & faiths | Cultures, Species & minorities, Religions & conversion, Tolerance | How do minorities work in an Anbennar province? |
 | Technology & progression | Technologies, Institutions, Ideas & policies, Ages, Campaign progression | What unlocks a technology? How do mission prerequisites work? |
@@ -24,21 +24,26 @@ The first seven domains provide a shared vocabulary. Populate each subject only 
 | Dimension | Example values | What it lets the administrator or assistant do |
 |---|---|---|
 | Corpus | EU4, Anbennar, Real History | Select the world or body of evidence. |
-| Domain → subject | Diplomacy & subjects → Subject states & unions | Find records about a particular topic across content kinds. |
+| Domain and subject | Diplomacy & subjects × Dynastic succession | Select a gameplay context and a topic together, or search for the topic across contexts. |
 | Record kind | Mechanic, mission tree, mission, event, decision, modifier, country, subject type, invention | Find all events or missions in a corpus, then narrow by topic. |
 | Linked entity | Country, province, estate, religion, resource | Find missions available to a country or decisions affecting a particular estate. |
 | Release context | EU4 patch, Anbennar release or commit, enabled DLC | Resolve the applicable definition of a record. |
 
-In the current demo a source or dataset has one assigned subject. Retain it as an optional catalog default. An import can propose that default, and an administrator can confirm or change it per record. A mixed collection can remain unassigned. The demo's *Game systems → Missions and events* is useful as an existing catalog label. Preserve it for existing assets. New record searches for missions and events use the kind filter. General explanations of how mission prerequisites work fit under *Technology & progression → Campaign progression*.
+**Worked example.** Define *Dynastic succession* once. Link it to *Governance & succession* and *Diplomacy & subjects*. Give a game record explaining how a domestic heir takes the throne the first pair. Give a game record explaining how succession affects a personal union the second pair. Searching the subject alone returns both records. Adding the diplomacy filter returns only the second. If one record directly covers both contexts, assign both pairs and show the record once in results.
+
+**Administration.** Selecting a domain narrows the subject picker to linked subjects. When the editor selects a shared subject first, offer its linked domains for them to choose the relevant context. Linking an existing subject to another domain makes the pair available for future assignments. Existing record classifications stay tied to their selected pairs.
+
+**Current demo.** The prototype stores one parent per subject and one optional subject per source or dataset. To migrate, turn each existing parent link into a domain–subject pair, then point the existing asset assignment to that pair. A source or dataset can suggest its pair to the import reviewer. Mixed collections can remain unassigned. Preserve *Game systems → Missions and events* for existing assets. Individual missions and events can be found using the record-kind filter.
 
 ## Minimum logical records
 
 | Record | Grain and essential fields |
 |---|---|
-| Domain, Subject | One domain has many subjects. Each subject has a stable ID, one parent domain, a label and a short inclusion rule. Renaming either preserves existing assignments. |
+| Domain, Subject | Two independent vocabularies with stable IDs, labels and short definitions. A subject keeps the same ID in every domain where it is used. |
+| Domain subject (`domain_subject`) | One allowed pair with an ID and a unique combination of `domain_id` and `subject_id`. A steward can retire a pair for new assignments while preserving existing references. |
 | Corpus, Release | A release identifies a source snapshot within a corpus. For games capture the base patch, optional mod release or commit, source channel and enabled DLC. For history use the evidence collection edition. |
 | Record, Record revision | A record is one identity within a corpus, kind and qualified key. A revision holds its definition for one release, with localized names. Stable import keys keep renamed display labels and repeated imports attached to the same identity. |
-| Revision subject | Links a revision to a subject, with role primary or secondary. Require exactly one primary for a published revision. A draft can await classification. |
+| Revision classification (`revision_classification`) | Links `revision_id` to an allowed `domain_subject_id` with role primary or secondary. Each pair occurs once per revision. One primary assignment gives a published revision its default display location. Secondary assignments describe additional contexts the record actually covers. A draft can await classification. |
 | Rule block | Stores a revision's availability, triggers, choices or effects with scope, nesting and ordering. Keep the source expression so alternatives, option-specific effects and DLC requirements survive extraction. |
 | Relation | Connects revisions in a release using a named relationship such as belongs to tree, available to country, requires mission, triggers event or grants modifier. An optional rule-block reference identifies the choice or condition under which it applies. |
 | Evidence | Links a revision, rule block or relation to a source asset revision and a precise locator, such as a script key and line range, PDF page, web heading or database row key. A record may have multiple citations. |
