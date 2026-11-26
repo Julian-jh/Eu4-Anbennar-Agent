@@ -1,6 +1,6 @@
 # Data workspace
 
-Open the frontend's `index.html` and choose **Data**. The five sidebar entries stay visible as you move between a source, a dataset and its run history.
+Open the frontend's `index.html` and choose **Data**. Use the sidebar to switch between sources, storage destinations, datasets, jobs, taxonomy and archives.
 
 ## 1. Navigation
 
@@ -8,6 +8,8 @@ Open the frontend's `index.html` and choose **Data**. The five sidebar entries s
 Data                                 top navigation
 ├─ Sources                            sidebar
 │  └─ Source → Connection | Asset preview
+├─ Storages                           sidebar
+│  └─ Storage location → Configuration and linked datasets
 ├─ Datasets                           sidebar
 │  ├─ Folder rail → Create dataset | Import tables | Manage layers | Folder tree
 │  ├─ Import tables → Database inventory → Warehouse destination → Import results
@@ -23,7 +25,7 @@ Data                                 top navigation
    └─ Archived datasets → Restore
 ```
 
-In Taxonomy, expand a domain or subject like a folder to see the sources and datasets contributing to its totals. Multiple folders can stay open. Edit an asset's assignment on its own row, or expand **Unassigned** to classify an asset for the first time. Use the subject editor to choose its linked domains. **Matrix** displays counts across both dimensions. Restore is a row action in Archive.
+In **Taxonomy**, use **Add datasets** on a domain or subject to classify existing datasets. Choose an active domain–subject combination and review the datasets’ current assignments before saving. Expand a folder to see the sources and datasets contributing to its totals. **Unassigned** lists assets awaiting classification and **Matrix** displays counts across both dimensions. To classify a single dataset while inspecting it, use its **Overview**. Both entry points update the same assignment.
 
 **Sources** owns connection configuration and inventory. The database editor supports PostgreSQL, MySQL, SQL Server and SQLite. Network database profiles save the address, database and username. The password input is transient. Tests in this browser demo validate the profile using sample data. For a **Managed folder**, set a root and optionally a subdirectory, select allowed extensions and a parser, and enable recursion when required. File enumeration is simulated.
 
@@ -32,6 +34,7 @@ In Taxonomy, expand a domain or subject like a folder to see the sources and dat
 | Submenu | Purpose | Managed objects | Primary actions |
 |---|---|---|---|
 | Sources | Establish where data comes from and check connectivity. | Database, file, folder and URL connections, exposed assets and sync health | Connect, test, sync and preview. |
+| Storages | Define where datasets are written. | Named storage locations and the active or archived datasets using them | Register a destination, edit its settings, inspect usage and remove an unused location. |
 | Datasets | Prepare warehouse records and build searchable collections. | Raw and detail layers, upstream assets, storage, transformations, schedules and indexes | Create a layer or dataset, materialize and export rows, explore lineage, schedule jobs, build retrieval and archive. |
 | Jobs | Investigate operations across sources and datasets. | Run history, failure details, retry attempts and schedule inventory | Filter by job type or status, inspect results, retry a failure or edit a dataset schedule within Jobs. |
 | Taxonomy | Classify assets under a common business vocabulary. | Domains, reusable subjects, allowed combinations and asset assignments | Define domains and subjects in their respective tabs. Maintain links in the subject editor, classify assets inside expanded folders and inspect coverage in the read-only matrix. |
@@ -42,7 +45,7 @@ In Taxonomy, expand a domain or subject like a folder to see the sources and dat
 1. Open **Sources → Anbennar mission notes → Connection**. Test the connection, sync the inventory and review its linked dataset names. Select **Datasets** from the sidebar and open **Mission reference** to see the source asset and storage destination. To try a different pairing, choose the **Create dataset** icon in the folder rail.
 2. On **Overview**, refresh the existing dataset or ingest a newly created raw dataset. Select the **Schedule** tab to choose an operation and recurrence. **Jobs → Dataset schedules** lists upcoming runs and offers **Schedule a job**. For a failure example, filter **Job history** by **Failed** and retry the sample mission refresh. The result identifies the new attempt. Open that attempt from the history list.
 3. For **Mission reference**, choose indexed documents under **Documents**. In **Retrieval**, configure parsing, chunking, embeddings and index type, then build the index. Try a document search in **Data preview**. Changing the document selection makes the index **Rebuild required**. For **Reign detail**, use **Retrieval** to choose filter and return fields and add an equality index on `country_tag`. In **Data preview**, try `country_tag = FRA`, `start_date ≤ 1444-11-11`, and `end_date > 1444-11-11` to retrieve Charles VII and the source row.
-4. Open **Taxonomy → Domains** to see the source and dataset counts for **Governance & succession**. In **Subjects**, edit **Monarchs and reigns** and add a second linked domain. In **Matrix**, that intersection now shows an enabled link with zero assets until an assignment is made. The **Reign register** source keeps its original classification. Retiring a link in the subject editor also preserves its existing assignments.
+4. Open **Taxonomy → Subjects** and choose **Add datasets** beside **Dynastic succession**. Choose the **Governance & succession** domain, select **Reign detail** and save. Expand the subject to see its new member. Open **Reign detail → Overview** from Datasets to see or change the same assignment. **Matrix** reflects the updated counts.
 5. On a dataset's **Overview**, choose **Archive dataset**. Its data, source link, storage choice, configuration, classifications and history are retained. Its schedule stops. Archiving disables structured queries and withdraws document indexes. **Archive → Restore** makes retained table rows available for queries again. Restore and rebuild a document index to resume RAG. Re-enable schedules separately.
 
 The demo stores changes in the browser. The named storage locations represent logical destinations. Connection checks, imports and index builds operate on local sample records. Document searches match text in the last published index. Structured queries apply all configured conditions to current materialized rows and return the selected columns and source locator. Model and index selections demonstrate configuration and rebuild behavior. The local scheduler checks while the page is open and runs one catch-up job on reopening when a schedule is overdue.
@@ -50,6 +53,8 @@ The demo stores changes in the browser. The named storage locations represent lo
 ## Warehouse records and lineage
 
 Under **Datasets**, the **Import tables** icon in the folder rail opens a separate page. Choose a database, select one or more tables across searches, and choose a raw layer, storage location and folder. Each table becomes a populated dataset with its own lineage and ingestion job. An existing or archived import is marked in the inventory. All selected tables must validate for the batch to be imported.
+
+Register a local folder, PostgreSQL schema or S3 bucket and optional prefix in **Storages**. The destination becomes available when creating, importing or editing datasets. The demo saves storage profiles and dataset records in the browser. Open a location to see its active and archived datasets. You can rename it while it is in use. Changing its address or deleting it requires moving those references first.
 
 Open **Data preview** on a dataset to inspect its stored contents. It requests up to 15 records or documents per page. Choose a page below the results to fetch it. Open a row for its complete values or a document for its text and source locator. **Download records** exports the entire active dataset. The bundled **Mission reference** sample has 18 entries, so page 2 starts at entry 16. In an existing workspace, **Overview → Refresh now** imports the updated sample.
 

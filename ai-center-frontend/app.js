@@ -28,7 +28,7 @@
     }
   });
   const navigation = {
-    data: [['catalog','Sources','sources'],['datasets','Datasets','lifecycle'],['jobs','Jobs','lifecycle'],['taxonomy','Taxonomy','lifecycle'],['archive','Archive','lifecycle']],
+    data: [['catalog','Sources','sources'],['storages','Storages','lifecycle'],['datasets','Datasets','lifecycle'],['jobs','Jobs','lifecycle'],['taxonomy','Taxonomy','lifecycle'],['archive','Archive','lifecycle']],
     semantic: [['overview','Model overview','semantic'],['mappings','Field mappings','semantic'],['validation','Validation','semantic']],
     ai: [['configuration','Assistant configuration','assistant'],['release','Test & release','assistant'],['runs','Runs','runs'],['performance','Performance','runs'],['evaluations','Evaluations','runs']],
     api: [['connectors','Connected services','api'],['published','Published APIs','api']],
@@ -217,6 +217,7 @@
   function drawDataPage() {
     const ctx = dataContext();
     if (state.view === 'datasets') window.DataDatasetView.render($('data-work'),ctx);
+    else if (state.view === 'storages') window.DataStorageView.render($('data-work'),ctx);
     else if (routes.get(state.view).page === 'lifecycle') window.DataOpsView.render($('data-work'),ctx);
     else if (routes.get(state.view).page === 'sources') drawSources();
   }

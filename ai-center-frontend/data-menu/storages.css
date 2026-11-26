@@ -1,0 +1,19 @@
+.dm-layout [data-section=storages]::before { content: '▱'; }
+.dm-storages { display:grid; align-content:start; grid-template-columns:minmax(0,1fr); gap:18px; min-width:0; }
+.dm-storages .dm-head { align-items:center; }
+.dm-storages .dm-head h1,.dm-storages code { overflow-wrap:anywhere; }
+.dm-storages .dm-storage-filters .dm-field { max-width:22rem; }
+.dm-storage-dialog {
+  box-sizing:border-box; width:min(28rem,calc(100vw - 24px)); max-height:calc(100dvh - 24px); margin:auto;
+  padding:20px; overflow:auto; border:1px solid var(--control-border); border-radius:9px;
+  background:var(--paper); color:var(--ink); box-shadow:0 10px 36px rgb(0 0 0 / 20%);
+}
+.dm-storage-dialog::backdrop { background:rgb(0 0 0 / 55%); }
+.dm-storage-dialog form { display:grid; gap:12px; }
+.dm-storage-dialog textarea { width:100%; min-height:3.5rem; resize:vertical; }
+.dm-storage-dialog small { overflow-wrap:anywhere; }
+.dm-storage-dialog .dm-actions { justify-content:flex-end; }
+.dm-storage-dialog input[readonly] { background:var(--soft); }
+@media (max-width:480px) {
+  .dm-storage-filters .dm-field { flex-basis:100%; }
+}

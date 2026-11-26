@@ -10,7 +10,7 @@ The workspace header contains five navigation icons. On hover or keyboard focus,
 
 | Top row | Destinations, in display order | Work covered |
 |---|---|---|
-| Data | Sources · Datasets · Jobs · Taxonomy · Archive | Connect and sync sources, prepare datasets for retrieval, monitor jobs, classify assets and restore archived collections. |
+| Data | Sources · Storages · Datasets · Jobs · Taxonomy · Archive | Connect sources, register storage destinations, prepare datasets for retrieval, monitor jobs, classify assets and restore archived collections. |
 | Semantic layer | Model overview · Field mappings · Validation | Inspect entities and relationships, map source fields and test their meaning against sample records. |
 | AI Center | Assistant configuration · Test & release · Runs · Performance · Evaluations | Configure an assistant, test and publish it, trace a request, inspect service metrics and compare answer quality. |
 | External APIs | Connected services · Published APIs | Configure outbound service calls and manage the assistant endpoints available to client applications. |
