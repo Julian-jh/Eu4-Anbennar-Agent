@@ -443,9 +443,21 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       return {batchId,results:[...results.values()]};
     });
   }
+  function exportRecordSet(ds) {
+    return {datasetId:ds.id,name:ds.name,layer:ds.layer,grain:ds.grain || null,
+      sourceId:ds.sourceId,sourceAsset:ds.asset,upstreamId:ds.upstreamId || null,
+      records:ds.docs.map(doc => {
+        const record = {values:doc.values || {},sourceLocator:doc.locator ?? null};
+        if (ds.dataType === 'document' || !Object.keys(record.values).length) {
+          Object.assign(record,{id:doc.id,title:doc.title,text:doc.text});
+        }
+        return record;
+      })
+    };
+  }
   const api = {
-    runBatch,
     snapshot:read,
+    runBatch,
     previewMetadata(id) {
       const data = read(true);
       const ds = data.datasets.find(item => item.id === id);
@@ -466,17 +478,17 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       return {page,pageCount,offset,count,records:ds.docs.slice(offset,offset+pageSize)};
     },
     exportRecords(id) {
-      const ds = active(read(true),id);
-      return {datasetId:ds.id,name:ds.name,layer:ds.layer,grain:ds.grain || null,
-        sourceId:ds.sourceId,sourceAsset:ds.asset,upstreamId:ds.upstreamId || null,
-        records:ds.docs.map(doc => {
-          const record = {values:doc.values || {},sourceLocator:doc.locator ?? null};
-          if (ds.dataType === 'document' || !Object.keys(record.values).length) {
-            Object.assign(record,{id:doc.id,title:doc.title,text:doc.text});
-          }
-          return record;
-        })
-      };
+      return exportRecordSet(active(read(true),id));
+    },
+    exportBatch(ids) {
+      const data = read(true);
+      const selected = selectedDatasets(data,ids);
+      const datasets = selected.map(ds => {
+        const item = exportRecordSet(ds);
+        return {...item,dataType:ds.dataType,recordCount:ds.docs.length,sourceName:sourceFor(ds.sourceId)?.name || ds.sourceId,
+          folderId:ds.folderId || null,storage:ds.storage,fields:fieldsForRecord(ds)};
+      });
+      return {formatVersion:1,exportedAt:now(),datasetCount:datasets.length,datasets};
     },
     addFolder({name,parentId=null}) {
       return commit(data => {

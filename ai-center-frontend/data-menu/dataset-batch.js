@@ -1,4 +1,4 @@
-/* Batch task selection, execution receipts. */
+/* Batch task selection, execution receipts and single-file dataset exports. */
 (() => {
   'use strict';
 
@@ -6,6 +6,16 @@
     const {node,button,field,select,group} = ui;
     const run = button('Run selected',openRun);
     run.dataset.batchAction = 'run';
+    const exportButton = button('Export selected',() => {
+      try {
+        const payload = store.exportBatch(getSelected().map(ds => ds.id));
+        const day = payload.exportedAt.slice(0,10);
+        window.DataPreviewView.download(payload,'datasets-' + day + '.json');
+        status('Exported ' + count(payload.datasetCount,'dataset') + ' in one JSON file.');
+      } catch (error) {
+        status(error.message || 'The datasets could not be exported.',true);
+      }
+    });
     function count(n,label) { return n + ' ' + label + (n === 1 ? '' : 's'); }
 
     function openRun() {
@@ -57,8 +67,16 @@
         heading.focus();
       }
       const confirm = button('Run tasks',() => {
-        try {showResults(store.runBatch(records.map(ds => ds.id),task.value));}
-        catch (cause) {error.hidden = false;error.textContent = cause.message || 'The batch could not start.';}
+        confirm.disabled = true;
+        let batch;
+        try {batch = store.runBatch(records.map(ds => ds.id),task.value);}
+        catch (cause) {
+          error.hidden = false;
+          error.textContent = cause.message || 'The batch could not start.';
+          confirm.disabled = false;
+          return;
+        }
+        showResults(batch);
       },true);
       const cancel = button('Cancel',() => dialog.close());
       dialog.append(heading,field('Task type',task),summary,detail,error,group('dm-actions',cancel,confirm));
@@ -76,7 +94,7 @@
       dialog.showModal();
       task.focus();
     }
-    return [run];
+    return [run,exportButton];
   }
   window.DatasetBatch = {actions};
 })();

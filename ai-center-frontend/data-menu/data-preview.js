@@ -3,12 +3,12 @@
   'use strict';
   const format = value => value == null ? '—' : typeof value === 'object' ? JSON.stringify(value) : String(value);
 
-  function download(payload) {
+  function download(payload,filename) {
     const file = new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
     const url = URL.createObjectURL(file);
     const link = document.createElement('a');
     link.href = url;
-    link.download = payload.layer.toLowerCase() + '-' + payload.datasetId + '.json';
+    link.download = filename || payload.layer.toLowerCase() + '-' + payload.datasetId + '.json';
     link.hidden = true;
     document.body.append(link);
     link.click();
@@ -136,5 +136,5 @@
     }
     draw(1);
   }
-  window.DataPreviewView = {render};
+  window.DataPreviewView = {render,download};
 })();
