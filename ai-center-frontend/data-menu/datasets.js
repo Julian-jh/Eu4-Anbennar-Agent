@@ -253,6 +253,8 @@
         ...(catalogSelection.layer ? {fromLayer:catalogSelection.layer} : {}),
         ...(catalogSelection.page > 1 ? {fromPage:String(catalogSelection.page)} : {})
       }));
+      createDataset.title = 'Define a dataset from a file, folder, URL or upstream dataset';
+      importTables.title = 'Import one or more database tables as populated datasets';
       const tools = group('dm-catalog-tools',createDataset,importTables,manageLayers);
       tools.setAttribute('role','group');
       tools.setAttribute('aria-label','Dataset actions');
