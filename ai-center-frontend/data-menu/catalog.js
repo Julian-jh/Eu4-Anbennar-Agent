@@ -37,7 +37,16 @@
       content.append(crumb);
     }
     const controls = group('dm-catalog-filters',field('Search datasets',query),field('Warehouse layer',layer));
-    controls.append(count);
+    const filters = node('section',null,'dm-filter-panel');
+    filters.setAttribute('aria-label','Dataset filters');
+    const clearFilters = button('Clear filters',() => {
+      query.value = layer.value = '';
+      changeFilter();
+      query.focus();
+    });
+    filters.append(group('dm-filter-heading',node('h2','Filters'),clearFilters),controls);
+    const results = node('section',null,'dm-catalog-results');
+    results.setAttribute('aria-label','Dataset results');
     const list = node('div',null,'dm-catalog-list');
     const paging = group('dm-catalog-pages');
     const batch = group('dm-catalog-batch');
@@ -119,11 +128,13 @@
     const archive = button('Archive selected',() => confirmBatch('archive',archive));
     const remove = button('Delete selected',() => confirmBatch('delete',remove));
     batch.append(selectedCount,move,archive,remove,button('Clear selection',() => {selectedIds.clear();draw();}));
-    content.append(controls,batch,list,paging);
+    results.append(count,batch,list,paging);
+    content.append(filters,results);
 
     function draw() {
       selection.query = query.value;
       selection.layer = layer.value;
+      clearFilters.hidden = !query.value && !layer.value;
       const term = query.value.trim().toLocaleLowerCase();
       const matches = subset.filter(d => (!layer.value || d.layer === layer.value) && (!term ||
         [d.name,d.asset,d.layer,d.grain,inputName(d),folderPath(d)].some(v => String(v || '').toLocaleLowerCase().includes(term))));
