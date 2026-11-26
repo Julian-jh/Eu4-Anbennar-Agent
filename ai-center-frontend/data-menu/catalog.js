@@ -51,7 +51,8 @@
     const paging = group('dm-catalog-pages');
     const batch = group('dm-catalog-batch');
     const selectedCount = node('strong');
-    const selectedIds = new Set();
+    const selectedIds = new Set(selection.afterRunIds);
+    delete selection.afterRunIds;
     let page = selection.page || 1;
     const move = button('Move selected',() => {
       if (!selectedIds.size) return;
@@ -127,7 +128,9 @@
     }
     const archive = button('Archive selected',() => confirmBatch('archive',archive));
     const remove = button('Delete selected',() => confirmBatch('delete',remove));
-    batch.append(selectedCount,move,archive,remove,button('Clear selection',() => {selectedIds.clear();draw();}));
+    const taskActions = window.DatasetBatch.actions({store,status,getSelected:() => subset.filter(ds => selectedIds.has(ds.id)),
+      refresh:() => {selection.afterRunIds = [...selectedIds];config.refresh();}},ui);
+    batch.append(selectedCount,...taskActions,move,archive,remove,button('Clear selection',() => {selectedIds.clear();draw();}));
     results.append(count,batch,list,paging);
     content.append(filters,results);
 

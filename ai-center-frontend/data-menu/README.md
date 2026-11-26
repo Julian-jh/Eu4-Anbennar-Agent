@@ -55,6 +55,8 @@ On a dataset's **Overview**, the **Folder** property shows its path. Choose **Mo
 
 Use **Archive selected** to retain the selected datasets for restoration, or **Delete selected** to remove their stored data and configuration permanently. The confirmation lists the selected names and count across catalog pages. Deletion checks downstream dependencies, including archived datasets. Past jobs retain the names of deleted datasets in their history.
 
+**Run selected** runs an ingestion, refresh or index rebuild across the selection. Ingestion and refresh process selected upstream tables first. When rebuilding indexes in a mixed selection, structured tables are marked **Skipped**. The result shows each dataset's status and job ID. The batch ID can be searched in **Jobs**.
+
 **ODS** stores the selected source asset’s fields and row values. **DWD** reads an active raw dataset. Its definition records the grain of each detail row and can specify a field for deduplication. Materialization trims surrounding whitespace in text fields and keeps a locator for each retained input row. Documents excluded from a RAG index still participate in warehouse transformations. The catalog supports custom layers with raw or detail behavior. The demo materializes datasets locally in browser storage.
 
 Select **Reign detail** from the dataset list and open **Lineage**. Its path is **Reign register / public.reigns → Monarchs and reigns (ODS) → Reign detail (DWD)**. The detail table supports direct structured lookup. **Mission reference** shows a document index as a downstream node. Select a node to inspect its input, storage or retrieval state. Archiving a raw input retains its materialized outputs, and subsequent detail refreshes fail until that input is available again.

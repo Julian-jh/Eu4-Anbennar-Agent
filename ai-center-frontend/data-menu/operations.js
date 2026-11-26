@@ -3,7 +3,7 @@
 
   const sessions = new WeakMap();
   const jobLabels = {ingest: 'Ingestion', refresh: 'Data refresh', rebuild: 'Index rebuild', sync: 'Source sync', test: 'Connection test'};
-  const jobStatuses = ['Succeeded', 'Failed', 'Running', 'Queued'];
+  const jobStatuses = ['Succeeded', 'Failed', 'Skipped', 'Running', 'Queued'];
   const timeFormat = new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'});
 
   function displayTime(value) {
@@ -74,6 +74,7 @@
           <dt>Source</dt><dd>${esc(sourceName(job.sourceId || subject?.sourceId))}</dd>
           <dt>Started</dt><dd>${esc(displayTime(job.createdAt))}</dd>
           <dt>Trigger</dt><dd>${job.retryOf ? 'Retry' : esc(job.trigger || 'On demand')}</dd>
+          ${job.batchId ? `<dt>Batch</dt><dd>${esc(job.batchId)}</dd>` : ''}
           ${job.retryOf ? `<dt>Retry of</dt><dd>${esc(job.retryOf)}</dd>` : ''}
           ${latest ? `<dt>Latest retry</dt><dd>${esc(latest.id)} · ${esc(latest.status)}</dd>` : ''}
           <dt>Result</dt><dd>${esc(job.detail || 'No detail recorded.')}</dd></dl>
@@ -81,7 +82,7 @@
           ${button('Back to job history', 'close-job', job.id)}</div></section>`;
       }
       const jobs = [...data.jobs].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
-      const rows = jobs.map(job => `<tr data-row data-match="${esc([job.id, assetName(job), sourceName(job.sourceId), jobLabels[job.type] || job.type].join(' '))}" data-status="${esc(job.status)}" data-type="${esc(job.type)}">
+      const rows = jobs.map(job => `<tr data-row data-match="${esc([job.id, job.batchId, assetName(job), sourceName(job.sourceId), jobLabels[job.type] || job.type].join(' '))}" data-status="${esc(job.status)}" data-type="${esc(job.type)}">
         <td>${button(job.id, 'inspect', job.id, 'dm-link')}</td><td>${esc(jobLabels[job.type] || job.type)}</td>
         <td>${esc(assetName(job))}</td><td>${badge(job.status)}</td><td>${esc(displayTime(job.createdAt))}</td>
         <td>${canRetry(job) ? button('Retry', 'retry', job.id) : button('Inspect', 'inspect', job.id)}</td></tr>`);

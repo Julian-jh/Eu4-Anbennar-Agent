@@ -398,7 +398,53 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     if (failed) throw failed;
     return jobId;
   }
+  function runBatch(ids,type) {
+    if (!['refresh','ingest','rebuild'].includes(type)) throw new Error('Choose a supported dataset operation.');
+    return commit(data => {
+      const selection = selectedDatasets(data,ids);
+      if (type === 'rebuild' && selection.every(ds => ds.dataType === 'table')) {
+        throw new Error('Select at least one document dataset to rebuild its index.');
+      }
+      const byId = new Map(selection.map(ds => [ds.id,ds]));
+      const ordered = new Map(), visiting = new Set();
+      function visit(ds) {
+        if (ordered.has(ds.id)) return;
+        if (visiting.has(ds.id)) throw new Error('A dependency cycle prevents this batch from running.');
+        visiting.add(ds.id);
+        if (type !== 'rebuild' && byId.has(ds.upstreamId)) visit(byId.get(ds.upstreamId));
+        visiting.delete(ds.id);
+        ordered.set(ds.id,ds);
+      }
+      selection.forEach(visit);
+      const results = new Map();
+      const batchId = newId('batch');
+      for (const ds of ordered.values()) {
+        const extra = {trigger:'Batch',batchId};
+        const upstreamRun = results.get(ds.upstreamId);
+        let outcome = 'Succeeded', detail, jobId;
+        if (type === 'rebuild' && ds.dataType === 'table') {
+          outcome = 'Skipped';
+          detail = 'Structured tables use direct lookup and have no document index.';
+        } else if (type !== 'rebuild' && upstreamRun && upstreamRun.status !== 'Succeeded') {
+          outcome = 'Skipped';
+          detail = 'Upstream task ' + upstreamRun.jobId + ' did not succeed. Previous records were kept.';
+        } else {
+          try {
+            jobId = runDataset(data,ds.id,type,extra);
+            detail = data.jobs[0].detail;
+          } catch (error) {
+            outcome = 'Failed';
+            detail = error.message || 'The dataset operation failed.';
+          }
+        }
+        if (!jobId) jobId = log(data,{type,status:outcome,datasetId:ds.id,sourceId:ds.sourceId,detail,...extra});
+        results.set(ds.id,{datasetId:ds.id,name:ds.name,jobId,status:outcome,detail});
+      }
+      return {batchId,results:[...results.values()]};
+    });
+  }
   const api = {
+    runBatch,
     snapshot:read,
     previewMetadata(id) {
       const data = read(true);
