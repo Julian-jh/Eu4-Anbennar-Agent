@@ -1,0 +1,486 @@
+<script src="../theme.js"></script>
+<div id="ac-workbench" lang="en" aria-label="AI Center design preview">
+<style>
+html[data-theme=dark],html[data-theme=dark] #ac-workbench{color-scheme:dark}
+html[data-theme=light],html[data-theme=light] #ac-workbench{color-scheme:light}
+#ac-workbench{color-scheme:light dark;--surface:light-dark(#ffffff,#1d1d1d);--shell:light-dark(#f5f7f4,#141414);--ink:light-dark(#1e302b,#ededed);--secondary-ink:light-dark(#52665f,#bdbdbd);--stroke:light-dark(#d7e1da,#444444);--selected:light-dark(#e3eee6,#303030);--action:light-dark(#215840,#e7e7e7);--on-action:light-dark(#fff,#171717);--warm:light-dark(#775820,#e0e0e0);--warm-fill:light-dark(#f7efd7,#303030);background:var(--surface);color:var(--ink);border:1px solid var(--stroke);border-radius:12px;font:14px/1.45 "Inter","Segoe UI",Arial,sans-serif;box-sizing:border-box;container-type:inline-size}
+#ac-workbench *{box-sizing:border-box}
+#ac-workbench [hidden]{display:none!important}
+#ac-workbench h1,#ac-workbench h2,#ac-workbench h3,#ac-workbench p{margin:0}
+#ac-workbench h1{font-size:clamp(23px,4cqw,32px);font-weight:650;line-height:1.16;letter-spacing:-.045em}
+#ac-workbench h2{font-size:18px;line-height:1.3;font-weight:650;letter-spacing:-.025em}
+#ac-workbench h3{font-size:14px;font-weight:650}
+#ac-workbench code,#ac-workbench .ac-mono{font-family:ui-monospace,"SFMono-Regular",Consolas,monospace;font-size:.92em;overflow-wrap:anywhere}
+#ac-workbench .ac-muted{color:var(--secondary-ink)}
+#ac-workbench .ac-brand,#ac-workbench .ac-project,#ac-workbench .ac-person,#ac-workbench .ac-top,#ac-workbench .ac-topgroup,#ac-workbench .ac-inline,#ac-workbench .ac-itemname,#ac-workbench .ac-actions{display:flex;align-items:center;gap:9px}
+#ac-workbench .ac-top{padding:13px 20px;min-height:57px;border-bottom:1px solid var(--stroke);gap:18px;justify-content:space-between}
+#ac-workbench .ac-topgroup{gap:15px;flex-wrap:wrap}
+#ac-workbench .ac-brand{font-weight:690;letter-spacing:-.025em;font-size:18px;white-space:nowrap}
+#ac-workbench .ac-mark{display:inline-grid;place-items:center;inline-size:29px;block-size:29px;background:var(--action);color:var(--on-action);border-radius:7px;font:600 18px/1 Georgia,serif}
+#ac-workbench .ac-project{color:var(--secondary-ink);font-size:13px;border-left:1px solid var(--stroke);padding-left:15px}
+#ac-workbench .ac-sample{font-size:12px;color:var(--warm);background:var(--warm-fill);padding:3px 8px;border-radius:5px;white-space:nowrap}
+#ac-workbench .ac-person{color:var(--secondary-ink);font-size:13px}
+#ac-workbench .ac-shell{min-width:0}
+#ac-workbench .ac-primary-nav,#ac-workbench .ac-secondary-nav{display:flex;align-items:stretch;flex-wrap:wrap;padding:0 clamp(10px,2.4cqw,24px);border-bottom:1px solid var(--stroke)}
+#ac-workbench .ac-primary-nav{gap:3px;background:var(--surface)}
+#ac-workbench .ac-secondary-nav{gap:4px;background:var(--shell);padding-block:7px}
+#ac-workbench .ac-subnav{border:0;border-radius:5px;background:transparent;color:var(--secondary-ink);padding:6px 10px;font-size:13px}
+#ac-workbench .ac-subnav:hover{background:var(--surface)}
+#ac-workbench .ac-subnav[aria-current="page"]{background:var(--selected);color:var(--action);font-weight:650}
+#ac-workbench button,#ac-workbench select,#ac-workbench input{font:inherit;color:var(--ink)}
+#ac-workbench button{cursor:var(--cursor-interaction,pointer)}
+#ac-workbench button:disabled{cursor:default;opacity:.54}
+#ac-workbench button:focus-visible,#ac-workbench select:focus-visible,#ac-workbench input:focus-visible{outline:2px solid var(--action);outline-offset:2px}
+#ac-workbench .ac-nav{border:0;background:transparent;text-align:left;display:flex;align-items:center;gap:7px;padding:12px 11px;border-bottom:3px solid transparent;line-height:1.3}
+#ac-workbench .ac-nav[aria-current="true"]{border-bottom-color:var(--action);color:var(--action);font-weight:650}
+#ac-workbench .ac-nav:hover,#ac-workbench .ac-link:hover{background:var(--selected)}
+#ac-workbench .ac-icon{display:inline-grid;place-items:center;width:17px;height:17px;flex:0 0 17px}
+#ac-workbench .ac-icon svg{width:16px;height:16px;stroke-width:1.75}
+#ac-workbench .ac-icon i::before{content:attr(data-fallback);font:16px/1 "Segoe UI Symbol",sans-serif}
+#ac-workbench main{padding:clamp(15px,2.8cqw,30px);min-width:0}
+#ac-workbench .ac-page{display:grid;gap:22px;align-content:start}
+#ac-workbench .ac-pagehead,#ac-workbench .ac-blockhead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+#ac-workbench .ac-context{color:var(--secondary-ink);font-size:12px;margin-bottom:5px}
+#ac-workbench .ac-intro{margin-top:5px;color:var(--secondary-ink)}
+#ac-workbench .ac-box,#ac-workbench .ac-linebox{border:1px solid var(--stroke);border-radius:8px;min-width:0}
+#ac-workbench .ac-linebox{padding:15px;display:grid;gap:13px}
+#ac-workbench .ac-pad{padding:15px}
+#ac-workbench .ac-stack{display:grid;gap:12px;min-width:0}
+#ac-workbench .ac-actions,#ac-workbench .ac-inline{flex-wrap:wrap}
+#ac-workbench .ac-btn,#ac-workbench .ac-link,#ac-workbench .ac-tab{border-radius:6px;padding:7px 11px;line-height:1.4}
+#ac-workbench .ac-btn{background:var(--surface);border:1px solid var(--stroke);font-weight:580}
+#ac-workbench .ac-btn:hover{background:var(--shell)}
+#ac-workbench .ac-primary{background:var(--action);border-color:var(--action);color:var(--on-action)}
+#ac-workbench .ac-primary:hover{background:var(--action);filter:brightness(1.06)}
+#ac-workbench .ac-link{background:transparent;border:0;color:var(--action);font-weight:620;padding:4px 3px;text-align:left}
+#ac-workbench .ac-tabbar{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--stroke)}
+#ac-workbench .ac-tab{background:transparent;border:0;border-radius:0;color:var(--secondary-ink);border-bottom:2px solid transparent}
+#ac-workbench .ac-tab[aria-pressed="true"]{color:var(--action);border-bottom-color:var(--action);font-weight:650}
+#ac-workbench .ac-data{width:100%;border-collapse:collapse;text-align:left;table-layout:auto}
+#ac-workbench th,#ac-workbench td{padding:9px 12px;border-bottom:1px solid var(--stroke);vertical-align:top;overflow-wrap:anywhere}
+#ac-workbench th{font-size:12px;color:var(--secondary-ink);font-weight:600;background:var(--shell)}
+#ac-workbench table tr:last-child td{border-bottom:0}
+#ac-workbench .ac-sheet{overflow:auto;max-width:100%;border-radius:7px}
+#ac-workbench .ac-rowname{padding:0;background:transparent;color:var(--ink);border:0;font-weight:600;text-align:left}
+#ac-workbench tr[data-active="true"] td{background:var(--selected)}
+#ac-workbench .ac-tag{display:inline-block;font-size:12px;padding:2px 7px;border-radius:4px;background:var(--selected);color:var(--action);white-space:nowrap}
+#ac-workbench .ac-bullet{color:var(--action);font-weight:bold}
+#ac-workbench .ac-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
+#ac-workbench label.ac-field{display:grid;gap:5px;color:var(--secondary-ink);font-size:13px}
+#ac-workbench select,#ac-workbench input[type="text"]{border:1px solid var(--stroke);border-radius:5px;background:var(--surface);padding:7px 9px;min-width:0;max-width:100%;font-size:14px}
+#ac-workbench input[type="checkbox"]{accent-color:var(--action)}
+#ac-workbench .ac-picker{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#ac-workbench .ac-checks{display:grid;gap:4px}
+#ac-workbench .ac-checks label{display:flex;align-items:center;gap:6px}
+#ac-workbench .ac-kv{margin:0;display:grid;grid-template-columns:minmax(82px,auto) minmax(0,1fr);gap:5px 13px;align-items:baseline}
+#ac-workbench dt{color:var(--secondary-ink)}
+#ac-workbench dd{margin:0;overflow-wrap:anywhere}
+#ac-workbench .ac-info{background:var(--shell);border-radius:6px;padding:9px 12px}
+#ac-workbench .ac-result{border-left:3px solid var(--action);padding-left:11px}
+#ac-workbench .ac-status{color:var(--action);font-size:13px}
+#ac-workbench .ac-trace{margin:0;padding-left:24px}
+#ac-workbench .ac-trace li{padding:5px 0}
+#ac-workbench .ac-num{font-variant-numeric:tabular-nums}
+@container(max-width:760px){#ac-workbench .ac-primary-nav{gap:1px}#ac-workbench .ac-nav{padding:10px 8px;font-size:13px}#ac-workbench .ac-page{gap:16px}}
+@container(max-width:510px){#ac-workbench .ac-primary-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:4px 6px}#ac-workbench .ac-nav{justify-content:center;text-align:center;padding:8px 2px;font-size:12px}#ac-workbench .ac-nav .ac-icon{display:none}#ac-workbench .ac-secondary-nav{gap:1px;padding-inline:6px}#ac-workbench .ac-subnav{padding:6px 7px}#ac-workbench .ac-top{padding:10px 12px;gap:6px;flex-wrap:wrap}#ac-workbench .ac-person{display:none}#ac-workbench .ac-topgroup{gap:7px}#ac-workbench .ac-project{border:0;padding:0}#ac-workbench .ac-cols{grid-template-columns:minmax(0,1fr)}#ac-workbench .ac-pad,#ac-workbench .ac-linebox{padding:11px}#ac-workbench th,#ac-workbench td{padding:7px}#ac-workbench .ac-source-table th:last-child,#ac-workbench .ac-source-table td:last-child{display:none}}
+@media(pointer:coarse){#ac-workbench .ac-subnav,#ac-workbench .ac-nav,#ac-workbench .ac-btn,#ac-workbench .ac-link,#ac-workbench .ac-tab,#ac-workbench .ac-rowname,#ac-workbench select,#ac-workbench input[type="text"]{min-height:44px}}
+</style>
+<header class="ac-top">
+  <div class="ac-topgroup"><strong class="ac-brand"><span class="ac-mark" aria-hidden="true">A</span>AI Center</strong><span class="ac-project">EU4 &amp; Anbennar</span></div>
+  <div class="ac-topgroup"><a class="ac-sample" href="../index.html">Open current workbench ↗</a><label>Appearance <select id="ac-theme" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><span class="ac-person">Design preview</span></div>
+</header>
+<div class="ac-shell">
+  <nav class="ac-primary-nav" aria-label="Main areas">
+    <button type="button" class="ac-nav" data-area="data" aria-current="true"><span class="ac-icon" aria-hidden="true"><i data-lucide="database"></i></span>Data sources</button>
+    <button type="button" class="ac-nav" data-area="semantic"><span class="ac-icon" aria-hidden="true"><i data-lucide="git-fork"></i></span>Semantic layer</button>
+    <button type="button" class="ac-nav" data-area="ai"><span class="ac-icon" aria-hidden="true"><i data-lucide="sliders-horizontal"></i></span>AI Center</button>
+    <button type="button" class="ac-nav" data-area="api"><span class="ac-icon" aria-hidden="true"><i data-lucide="cable"></i></span>External APIs</button>
+    <button type="button" class="ac-nav" data-area="settings"><span class="ac-icon" aria-hidden="true"><i data-lucide="settings"></i></span>Workspace settings</button>
+  </nav>
+  <nav class="ac-secondary-nav" aria-label="Data sources sections" id="ac-sections"></nav>
+  <main aria-label="AI Center work area">
+    <section class="ac-page" data-page="sources" aria-labelledby="ac-title-sources">
+      <div class="ac-pagehead"><div><h1 id="ac-title-sources">Data sources</h1></div><button class="ac-btn ac-primary" type="button" data-view="catalog" data-act="add">+ Add source</button></div>
+      <div class="ac-linebox" id="ac-newsource" hidden>
+        <div class="ac-blockhead"><h2>Add a sample source</h2><button class="ac-link" data-act="cancel" type="button">Close</button></div>
+        <div class="ac-cols">
+          <label class="ac-field">Connection type<select id="ac-newtype"><option value="database">Database</option><option value="url">API / URL</option><option value="file">File</option><option value="folder">Folder</option></select></label>
+          <label class="ac-field">Display name<input id="ac-newname" type="text" maxlength="55" value="Archive replica"></label>
+          <label class="ac-field"><span id="ac-loclabel">Database address</span><input type="text" id="ac-newloc" value="archive.example.test:5432/atlas" maxlength="140"></label>
+        </div>
+        <div class="ac-actions"><button type="button" class="ac-btn ac-primary" data-act="save-source">Add to sample catalog</button><span class="ac-muted">Local preview only. No connection is opened.</span></div>
+        <div class="ac-status" id="ac-source-validation" role="status"></div>
+      </div>
+      <div class="ac-stack" data-view="catalog">
+        <div class="ac-blockhead"><h2>Registered sources</h2><label class="ac-picker">Type <select id="ac-source-filter"><option value="all">All types</option><option value="database">Database</option><option value="url">API / URL</option><option value="file">File</option><option value="folder">Folder</option></select></label></div>
+        <div class="ac-box ac-sheet"><table class="ac-data ac-source-table"><thead><tr><th scope="col">Source</th><th scope="col">Type</th><th scope="col">Access</th></tr></thead><tbody id="ac-catalog"></tbody></table></div>
+      </div>
+      <div class="ac-linebox" data-view="connection preview" aria-label="Selected source">
+        <div class="ac-blockhead"><h2 id="ac-source-name">Reign register</h2><span id="ac-source-type" class="ac-tag">PostgreSQL</span></div>
+        <label class="ac-picker">Source <select id="ac-source-select"></select></label>
+        <div id="ac-source-details"></div>
+      </div>
+    </section>
+    <section class="ac-page" data-page="semantic" aria-labelledby="ac-title-semantic" hidden>
+      <div><h1 id="ac-title-semantic">Semantic layer</h1></div>
+      <div class="ac-linebox" data-view="overview"><div class="ac-blockhead"><h2>Country reigns</h2><span class="ac-tag" id="ac-sem-version">Published · v2</span></div>
+        <dl class="ac-kv"><dt>Source</dt><dd>Reign register / public.reigns</dd><dt>Row grain</dt><dd>One ruler's recorded reign in one country.</dd><dt>Relationships</dt><dd>Country 1 → many Reigns · Ruler 1 → many Reigns</dd></dl>
+      </div>
+      <div class="ac-stack" data-view="mappings"><div class="ac-blockhead"><h2>Country reigns fields</h2><label class="ac-picker">Entity <select id="ac-entity"><option>All entities</option><option>Country</option><option>Ruler</option><option>Reign</option></select></label></div><div class="ac-box ac-sheet"><table class="ac-data"><thead><tr><th>Source field</th><th>Semantic field</th><th>Type</th></tr></thead><tbody id="ac-mappings"></tbody></table></div></div>
+      <div class="ac-linebox" data-view="validation"><h2>Test a semantic change</h2><p>Start dates are inclusive and end dates exclusive. An empty end date matches later dates only when the source explicitly marks the reign open. An unknown end requires further evidence.</p>
+        <div class="ac-cols"><label class="ac-field">Alias for Ruler.name<input id="ac-alias" type="text" value="Sovereign" maxlength="32"></label><label class="ac-field">Query date for France<select id="ac-sem-date"><option value="1444-11-11">11 November 1444</option><option value="1461-07-22">22 July 1461 · transition</option><option value="1600-01-01">1 January 1600</option></select></label></div>
+        <div class="ac-actions"><button type="button" class="ac-btn" data-act="test-semantic">Apply alias &amp; test</button></div><div class="ac-result" id="ac-sem-result" role="status">Preview uses the two sample reign records for France.</div>
+      </div>
+    </section>
+    <section class="ac-page" data-page="assistant" aria-labelledby="ac-title-assistant" hidden>
+      <div><h1 id="ac-title-assistant">AI configuration</h1></div>
+      <div class="ac-linebox" data-view="configuration"><div class="ac-blockhead"><h2>Historical rulers</h2><span class="ac-tag" id="ac-version">Draft v4 · live v3</span></div>
+        <div class="ac-cols"><label class="ac-field">Model profile<select id="ac-model"><option>Research standard</option><option>Research compact</option></select></label><label class="ac-field">Authorized semantic model<select id="ac-authorized"><option>Country reigns v2</option><option>None assigned</option></select></label></div>
+        <div class="ac-checks"><h3>Allowed tools</h3><label><input id="ac-lookup" type="checkbox" checked>Look up a dated reign</label><label><input id="ac-cite" type="checkbox" checked>Attach a source citation</label></div>
+        <div class="ac-info">Answer policy · Ask for a date when one is missing. Cite the register record supporting the answer.</div>
+      </div>
+      <div class="ac-linebox" data-view="release"><h2>Release test</h2><p>Who ruled France on 11 November 1444?</p><div class="ac-actions"><button class="ac-btn ac-primary" type="button" data-act="test">Run test</button><button class="ac-btn" type="button" data-act="release" id="ac-release" disabled>Release draft</button></div><div class="ac-result" id="ac-test-result" role="status">The current draft is ready to test.</div></div>
+    </section>
+    <section class="ac-page" data-page="runs" aria-labelledby="ac-title-runs" hidden>
+      <div><h1 id="ac-title-runs">Runs &amp; evaluations</h1></div>
+      <div class="ac-linebox" data-view="performance" hidden><h2>Sample run performance</h2><div id="ac-performance"></div></div>
+      <div id="ac-run-view" class="ac-stack" data-view="runs"><div class="ac-blockhead"><h2>Execution trace</h2><label class="ac-picker">Run <select id="ac-run-select"></select></label></div><div id="ac-run-info" class="ac-linebox"></div></div>
+      <div id="ac-eval-view" class="ac-stack" data-view="evaluations" hidden><div class="ac-blockhead"><h2>Version comparison</h2><label class="ac-picker">Suite <select id="ac-suite"><option value="dated">Dated ruler queries</option><option value="missing">Missing dates</option></select></label></div><div class="ac-info" id="ac-eval-set"></div><div class="ac-box ac-sheet"><table class="ac-data"><thead><tr><th>Metric</th><th>v2</th><th>v3</th></tr></thead><tbody id="ac-eval-rows"></tbody></table></div><div class="ac-result" id="ac-eval-note"></div></div>
+    </section>
+    <section class="ac-page" data-page="api" aria-labelledby="ac-title-api" hidden>
+      <div><h1 id="ac-title-api">External APIs</h1></div>
+      <div class="ac-linebox" id="ac-api-in" data-view="connectors"><div class="ac-blockhead"><h2>Country directory</h2><span class="ac-tag">Outbound · read only</span></div><dl class="ac-kv"><dt>Operation</dt><dd><code>GET /countries/{tag}</code></dd><dt>Host</dt><dd><code>directory.example.test</code></dd><dt>Auth binding</dt><dd>Project credential alias · directory-reader</dd><dt>Consumer</dt><dd>Country directory source</dd></dl></div>
+      <div class="ac-linebox" id="ac-api-out" data-view="published" hidden><div class="ac-blockhead"><h2>Historical rulers</h2><span class="ac-tag">Inbound · project scoped</span></div><dl class="ac-kv"><dt>Operation</dt><dd><code>POST /v1/assistants/historical-rulers/runs</code></dd><dt>Required scope</dt><dd><code>assistant:invoke</code></dd><dt>Input</dt><dd>Question, project context</dd><dt>Response</dt><dd>Run ID, answer and citations</dd><dt>Published version</dt><dd id="ac-live-api">v3</dd></dl></div>
+    </section>
+    <section class="ac-page" data-page="settings" aria-labelledby="ac-title-settings" hidden>
+      <div><h1 id="ac-title-settings">Workspace settings</h1></div>
+      <div class="ac-linebox" data-view="defaults"><h2>EU4 &amp; Anbennar</h2><dl class="ac-kv"><dt>Environment</dt><dd>Design sandbox</dd><dt>Current role</dt><dd>Workspace owner</dd><dt>Default access</dt><dd>Explicit grants only</dd></dl></div>
+      <div class="ac-stack" data-view="roles"><div class="ac-blockhead"><h2>Role assignments</h2><label class="ac-picker">Scope <select id="ac-scope"><option>All scopes</option><option>Project</option><option>Dataset</option><option>Assistant</option></select></label></div><div class="ac-box ac-sheet"><table class="ac-data"><thead><tr><th>Principal</th><th>Resource scope</th><th>Effective access</th></tr></thead><tbody id="ac-roles"></tbody></table></div></div>
+      <div class="ac-linebox" data-view="roles"><h2>Edit a grant</h2><div class="ac-cols"><label class="ac-field">Principal &amp; resource<select id="ac-principal"></select></label><label class="ac-field">Permission<select id="ac-permission"></select></label></div>
+        <div class="ac-result" id="ac-effective" role="status"></div><div><button type="button" class="ac-btn" data-act="apply-grant">Apply grant in preview</button></div>
+      </div>
+    </section>
+  </main>
+</div>
+</div>
+<script>
+(() => {
+  const root = document.getElementById('ac-workbench');
+  if (!root) return;
+  const $ = (id) => root.querySelector('#ac-' + id);
+  const all = (selector) => Array.from(root.querySelectorAll(selector));
+  const symbols = {'database':'▤','git-fork':'⑂','sliders-horizontal':'☷','activity':'∿','cable':'⇄','settings':'⚙︎'};
+  all('.ac-icon i').forEach(icon => {icon.dataset.fallback = symbols[icon.dataset.lucide] || '';});
+  const navigation = {
+    data: [['catalog','Source catalog','sources'],['connection','Connection details','sources'],['preview','Data preview','sources']],
+    semantic: [['overview','Model overview','semantic'],['mappings','Field mappings','semantic'],['validation','Validation','semantic']],
+    ai: [['configuration','Assistant configuration','assistant'],['release','Test & release','assistant'],['runs','Runs','runs'],['performance','Performance','runs'],['evaluations','Evaluations','runs']],
+    api: [['connectors','Connected services','api'],['published','Published APIs','api']],
+    settings: [['defaults','Workspace defaults','settings'],['roles','Roles & permissions','settings']]
+  };
+  const routes = new Map();
+  for (const [area, sections] of Object.entries(navigation)) {
+    for (const [view, label, page] of sections) {
+      routes.set(view, {area, label, page});
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'ac-subnav';
+      button.dataset.section = view;
+      button.textContent = label;
+      $('sections').append(button);
+    }
+  }
+  const kinds = {
+    database:['Database','Database address','archive.example.test:5432/atlas','Archive replica'],
+    url:['API / URL','Endpoint URL','https://directory.example.test/countries','Directory replica'],
+    file:['File','File name','reigns.csv','Reign extract'],
+    folder:['Folder','Folder path','/samples/history/countries','Country scripts']
+  };
+  const sources = [
+    {id:'register',name:'Reign register',kind:'database',format:'PostgreSQL',access:'Read only',loc:'archive.example.test:5432/atlas',object:'public.reigns',credential:'atlas-reader',fields:['country_tag','ruler_name','start_date','end_date','end_status'],rows:[['FRA','Charles VII','1422-10-21','1461-07-22','dated'],['FRA','Louis XI','1461-07-22','1483-08-30','dated']]},
+    {id:'directory',name:'Country directory',kind:'url',format:'REST / JSON',access:'Read only',loc:'https://directory.example.test/countries',object:'GET /countries/{tag}',credential:'directory-reader',fields:['country_tag','display_name'],rows:[['FRA','France'],['ENG','England']]},
+    {id:'names',name:'Country aliases',kind:'file',format:'CSV',access:'Snapshot',loc:'samples/country_aliases.csv',object:'country_aliases.csv',credential:'Workspace file access',fields:['country_tag','alias','language'],rows:[['FRA','France','en'],['FRA','法国','zh']]},
+    {id:'folder',name:'Country script archive',kind:'folder',format:'Folder',access:'Snapshot',loc:'samples/history/countries',object:'*.txt',credential:'Workspace folder access',fields:['file_name','country_tag'],rows:[['FRA - France.txt','FRA'],['ENG - England.txt','ENG']]}
+  ];
+  const fields = [['country_tag','Country.tag','Text'],['ruler_name','Ruler.name','Text'],['start_date','Reign.start','Date · inclusive'],['end_date','Reign.end','Date · exclusive'],['end_status','Reign.endStatus','Dated / open / unknown']];
+  const roles = [['Project admins','Project','EU4 & Anbennar','Manage resources and releases'],['History analysts','Dataset','Reign register','Preview and query rows'],['Research readers','Assistant','Historical rulers','Invoke published release'],['Evaluation team','Assistant','Historical rulers','View runs and evaluations']];
+  const permissions = {Project:['Manage resources and releases','View project','No access'],Dataset:['Preview and query rows','View metadata only','No access'],Assistant:['Invoke published release','View runs and evaluations','No access']};
+  const runs = [
+    {id:'R-104',v:3,question:'Who ruled France on 11 November 1444?',status:'Completed',latency:'1.4 s',cost:'$0.004',steps:['Resolved country France to FRA and parsed the date.','Queried Country reigns v2 with the caller’s dataset grant.','Returned Charles VII with the Reign register citation.']},
+    {id:'R-103',v:3,question:'Who ruled France?',status:'Clarification',latency:'0.6 s',cost:'$0.002',steps:['Resolved country France to FRA.','Detected a missing date.','Asked for the date before querying the register.']},
+    {id:'R-102',v:2,question:'Who ruled France on 22 July 1461?',status:'Failed evaluation',latency:'1.2 s',cost:'$0.003',steps:['Resolved France and the boundary date.','Applied an inclusive reign end and matched overlapping rows.','Returned Charles VII. The reference answer was Louis XI.']}
+  ];
+  const state = {view:'catalog',source:'register',filter:'all',detail:'preview',entity:'All entities',scope:'All scopes',suite:'dated',activeRun:'R-104',live:3,draft:4,tested:false,alias:'Sovereign',principal:1};
+  let lastSnapshot = '';
+  const node = (tag,text,cls) => {
+    const element = document.createElement(tag);
+    if (text !== undefined) element.textContent = text;
+    if (cls) element.className = cls;
+    return element;
+  };
+  const cellRow = (values, tag = 'td') => {
+    const tr = node('tr');
+    values.forEach(value => tr.append(node(tag,value)));
+    return tr;
+  };
+  const defList = (pairs) => {
+    const dl = node('dl',undefined,'ac-kv');
+    pairs.forEach(([label,value]) => dl.append(node('dt',label),node('dd',value)));
+    return dl;
+  };
+  function buildTable(labels,rows) {
+    const wrap = node('div',undefined,'ac-sheet');
+    const table = node('table',undefined,'ac-data');
+    const head = node('thead'), body = node('tbody');
+    head.append(cellRow(labels,'th'));
+    rows.forEach(row => body.append(cellRow(row)));
+    table.append(head,body);
+    wrap.append(table);
+    return wrap;
+  }
+  function remember() {
+    const bridge = window.openai;
+    if (!bridge || typeof bridge.setWidgetState !== 'function') return;
+    const selected = Object.fromEntries(['view','filter','entity','scope','suite'].map(key => [key,state[key]]));
+    if (['register','directory','names','folder'].includes(state.source)) selected.source = state.source;
+    const signature = JSON.stringify(selected);
+    if (signature === lastSnapshot) return;
+    lastSnapshot = signature;
+    Promise.resolve(bridge.setWidgetState({modelContent:{area:routes.get(state.view).area,section:state.view},privateContent:selected})).catch(() => {});
+  }
+  function navigate(view, save = true) {
+    const route = routes.get(view);
+    if (!route) return;
+    state.view = view;
+    for (const button of all('[data-area]')) {
+      if (button.dataset.area === route.area) {
+        button.setAttribute('aria-current','true');
+        $('sections').setAttribute('aria-label',button.textContent.trim() + ' sections');
+      } else button.removeAttribute('aria-current');
+    }
+    for (const button of all('[data-section]')) {
+      button.hidden = routes.get(button.dataset.section).area !== route.area;
+      if (button.dataset.section === view) button.setAttribute('aria-current','page');
+      else button.removeAttribute('aria-current');
+    }
+    for (const page of all('[data-page]')) page.hidden = page.dataset.page !== route.page;
+    for (const block of all('[data-view]')) block.hidden = !block.dataset.view.split(' ').includes(view);
+    $('title-' + route.page).textContent = route.label;
+    if (view !== 'catalog') $('newsource').hidden = true;
+    if (view === 'preview' || view === 'connection') state.detail = view;
+    if (route.area === 'data') drawSources();
+    if (view === 'performance') drawPerformance();
+    if (save) remember();
+  }
+  function drawSources() {
+    const visible = sources.filter(s => state.filter === 'all' || s.kind === state.filter);
+    if (!visible.some(s => s.id === state.source)) state.source = visible[0].id;
+    const active = visible.find(s => s.id === state.source);
+    const catalog = $('catalog');
+    catalog.replaceChildren();
+    visible.forEach(s => {
+      const tr = node('tr');
+      tr.dataset.active = String(s === active);
+      const td = node('td');
+      const button = node('button',s.name,'ac-rowname');
+      button.type = 'button';
+      button.dataset.source = s.id;
+      button.setAttribute('aria-pressed',String(s === active));
+      td.append(button);
+      tr.append(td,node('td',s.format),node('td',s.access));
+      catalog.append(tr);
+    });
+    $('source-filter').value = state.filter;
+    $('source-name').textContent = active.name;
+    $('source-type').textContent = active.format;
+    $('source-select').replaceChildren(...visible.map(s => new Option(s.name,s.id)));
+    $('source-select').value = active.id;
+    const details = $('source-details');
+    if (state.detail === 'connection') {
+      details.replaceChildren(defList([[kinds[active.kind][1],active.loc],['Resource',active.object],['Access binding',active.credential],['Connection mode','Simulated · no network access']]));
+    } else if (active.rows.length) {
+      details.replaceChildren(buildTable(active.fields, active.rows));
+    } else {
+      details.replaceChildren(node('p','No sample rows have been added to this source.','ac-muted'));
+    }
+  }
+  function drawMappings() {
+    $('entity').value = state.entity;
+    const rows = fields.filter(row => state.entity === 'All entities' || row[1].startsWith(state.entity + '.'));
+    $('mappings').replaceChildren(...rows.map(row => cellRow(row[1] === 'Ruler.name' ? [row[0],row[1] + ' · ' + state.alias,row[2]] : row)));
+  }
+  function testSemantic() {
+    const alias = $('alias').value.trim();
+    if (!alias) {$('sem-result').textContent = 'Enter a business alias for Ruler.name.';return;}
+    state.alias = alias;
+    $('sem-version').textContent = alias === 'Sovereign' ? 'Published · v2' : 'Preview draft · based on v2';
+    const date = $('sem-date').value;
+    const match = sources[0].rows.find(row => row[0] === 'FRA' && row[2] <= date && (row[4] === 'open' || (row[4] === 'dated' && date < row[3])));
+    $('sem-result').textContent = match ? alias + ' of France on ' + date + ' · ' + match[1] + ' · Reign register.' : 'No confirmed reign covers ' + date + ' in the sample.';
+    drawMappings();
+  }
+  function drawRoles() {
+    $('scope').value = state.scope;
+    const visible = roles.filter(r => state.scope === 'All scopes' || r[1] === state.scope);
+    $('roles').replaceChildren(...visible.map(r => cellRow([r[0],r[1] + ' · ' + r[2],r[3]])));
+    if (!visible.includes(roles[state.principal])) state.principal = roles.indexOf(visible[0]);
+    $('principal').replaceChildren(...visible.map(r => {const op = node('option',r[0] + ' · ' + r[2]);op.value = String(roles.indexOf(r));return op;}));
+    $('principal').value = String(state.principal);
+    const role = roles[state.principal];
+    $('permission').replaceChildren(...permissions[role[1]].map(p => node('option',p)));
+    $('permission').value = role[3];
+    showGrant();
+  }
+  function showGrant(applied = false) {
+    const r = roles[state.principal];
+    const action = $('permission').value;
+    const description = action === 'No access' ? 'No access to this resource.' : action + '.';
+    $('effective').textContent = (applied ? 'Applied in preview' : 'Effective access preview') + ' · ' + r[0] + ' → ' + r[2] + ' · ' + description;
+  }
+  function drawRuns() {
+
+    $('run-select').replaceChildren(...runs.map(r => {const option = node('option',r.id + ' · v' + r.v); option.value = r.id; return option;}));
+    $('run-select').value = state.activeRun;
+    const run = runs.find(r => r.id === state.activeRun) || runs[0];
+    const top = node('div',undefined,'ac-blockhead');
+    top.append(node('h3',run.question),node('span',run.status,'ac-tag'));
+    const list = node('ol',undefined,'ac-trace');
+    run.steps.forEach(step => list.append(node('li',step)));
+    $('run-info').replaceChildren(top,defList([['Run',run.id + ' · assistant v' + run.v],['Latency',run.latency],['Est. cost',run.cost]]),list);
+    $('suite').value = state.suite;
+    const dated = state.suite === 'dated';
+    $('eval-set').textContent = dated ? 'Same 20 reference questions · includes start and end date boundaries.' : 'Same 8 prompts missing a date · expected behavior is to ask for clarification.';
+    const rows = dated ? [['Reference answers passed','17 / 20','19 / 20'],['Citation accuracy','85%','95%'],['Median latency','1.2 s','1.4 s'],['Mean cost / question','$0.003','$0.004']] : [['Clarification checks passed','5 / 8','8 / 8'],['Premature tool calls','3','0'],['Median latency','1.1 s','0.6 s'],['Mean cost / question','$0.003','$0.002']];
+    $('eval-rows').replaceChildren(...rows.map(r => cellRow(r)));
+    $('eval-note').textContent = dated ? 'Reference case · On 22 July 1461, the register returns Louis XI under the exclusive end-date rule.' : 'Reference case · “Who ruled France?” needs a date before any lookup.';
+  }
+  function drawPerformance() {
+    const durations = runs.map(run => Number.parseFloat(run.latency)).sort((a,b) => a-b);
+    const at = Math.floor(durations.length / 2);
+    const median = durations.length % 2 ? durations[at] : (durations[at-1] + durations[at]) / 2;
+    const cost = runs.reduce((sum,run) => sum + Number(run.cost.slice(1)), 0);
+    $('performance').replaceChildren(defList([
+      ['Runs in this preview',String(runs.length)],
+      ['Median latency',median.toFixed(2) + ' s'],
+      ['Total estimated cost','$' + cost.toFixed(3)]
+    ]));
+  }
+  function drawApi() {
+
+    $('live-api').textContent = 'v' + state.live;
+  }
+  function drawAssistant() {
+    $('version').textContent = state.draft === state.live ? 'Published · v' + state.live : 'Draft v' + state.draft + ' · live v' + state.live;
+    $('release').disabled = !state.tested || state.draft === state.live;
+  }
+  function changeDraft() {
+    if (state.draft === state.live) state.draft++;
+    state.tested = false;
+    $('test-result').textContent = 'Configuration changed. Run the release test again.';
+    drawAssistant();
+  }
+  function testDraft() {
+    const hasAccess = $('authorized').value === 'Country reigns v2';
+    const lookup = $('lookup').checked;
+    const cite = $('cite').checked;
+    state.tested = hasAccess && lookup && cite;
+    const run = {id:'R-' + (Number(runs[0].id.slice(2)) + 1),v:state.draft,question:runs.find(r => r.id === 'R-104').question,status:state.tested ? 'Test passed' : 'Test failed',latency:$('model').value === 'Research compact' ? '0.9 s' : '1.4 s',cost:$('model').value === 'Research compact' ? '$0.002' : '$0.004',steps:['Loaded ' + $('model').value + ' and the draft configuration.']};
+    if (!hasAccess) run.steps.push('Authorization stopped the query: no semantic model was assigned.');
+    else if (!lookup) run.steps.push('Tool selection stopped: dated reign lookup is disabled.');
+    else {
+      run.steps.push('Queried Country reigns v2 for FRA on 1444-11-11 and found Charles VII.');
+      run.steps.push(cite ? 'Attached Reign register / public.reigns and passed the reference check.' : 'The citation tool is disabled. The required source check failed.');
+    }
+    runs.unshift(run);
+    state.activeRun = run.id;
+
+    $('test-result').textContent = (state.tested ? 'Passed' : 'Failed') + ' · ' + run.id + ' · ' + run.steps[run.steps.length - 1];
+    drawRuns();
+    drawAssistant();
+  }
+  function selectCatalogRow(id) {
+    state.source = id;
+    drawSources();
+    const selected = Array.from($('catalog').querySelectorAll('[data-source]')).find(button => button.dataset.source === id);
+    selected?.focus();
+  }
+  function addSource() {
+    const kind = $('newtype').value;
+    const name = $('newname').value.trim();
+    const loc = $('newloc').value.trim();
+    if (!name || !loc) {
+      $('source-validation').textContent = 'Enter a display name and source location.';
+      return;
+    }
+    const id = 'local-' + sources.length;
+    sources.push({id,name,kind,format:kinds[kind][0],access:'Sample only',loc,credential:'None assigned',object:'Unmapped',fields:[],rows:[]});
+    $('newsource').hidden = true;
+    state.filter = 'all';
+    selectCatalogRow(id);
+  }
+  function restore(snapshot) {
+    const exposed = snapshot && snapshot.modelContent;
+    const s = snapshot && (snapshot.privateContent || (exposed && {view:exposed.section,page:exposed.area}));
+    if (!s || typeof s !== 'object') return;
+    const accepted = {
+      source:['register','directory','names','folder'],filter:['all','database','url','file','folder'],detail:['preview','connection'],entity:['All entities','Country','Ruler','Reign'],
+      scope:['All scopes','Project','Dataset','Assistant'],suite:['dated','missing']
+    };
+    Object.keys(accepted).forEach(key => {if (accepted[key].includes(s[key])) state[key] = s[key];});
+    // Older samples saved the six sidebar pages and their local tabs.
+    const legacy = {sources:'catalog',semantic:'overview',assistant:'configuration',runs:s.operations === 'eval' ? 'evaluations' : 'runs',api:s.api === 'out' ? 'published' : 'connectors',settings:'roles'};
+    state.view = routes.has(s.view) ? s.view : legacy[s.page] || 'catalog';
+  }
+  function redraw() {drawSources();drawMappings();drawRoles();drawRuns();drawApi();drawAssistant();navigate(state.view,false);}
+  root.addEventListener('click',event => {
+    const button = event.target.closest('button');
+    if (!button || !root.contains(button)) return;
+    const d = button.dataset;
+    if (d.area) {navigate(navigation[d.area][0][0]);return;}
+    if (d.section) {navigate(d.section);return;}
+    if (d.source) selectCatalogRow(d.source);
+    else {
+      switch (d.act) {
+        case 'add': $('newsource').hidden = false;$('source-validation').textContent = '';$('newname').focus();break;
+        case 'cancel': $('newsource').hidden = true;break;
+        case 'save-source': addSource();break;
+        case 'test-semantic': testSemantic();break;
+        case 'apply-grant': roles[state.principal][3] = $('permission').value;drawRoles();showGrant(true);break;
+        case 'test': testDraft();break;
+        case 'release':
+          if (!state.tested || state.draft === state.live) return;
+          state.live = state.draft;
+          $('test-result').textContent = 'Published v' + state.live + ' in the design sandbox. The exposed assistant API now points to this release.';
+          drawAssistant();drawApi();break;
+      }
+    }
+    remember();
+  });
+  root.addEventListener('change',event => {
+    const input = event.target;
+    switch (input.id) {
+      case 'ac-source-select':state.source = input.value;drawSources();break;
+      case 'ac-source-filter': state.filter = input.value;drawSources();break;
+      case 'ac-newtype': {
+        const k = kinds[input.value];
+        $('loclabel').textContent = k[1];$('newloc').value = k[2];$('newname').value = k[3];break;
+      }
+      case 'ac-entity':state.entity = input.value;drawMappings();break;
+      case 'ac-scope':state.scope = input.value;drawRoles();break;
+      case 'ac-principal':state.principal = Number(input.value);drawRoles();break;
+      case 'ac-permission':showGrant();break;
+      case 'ac-suite':state.suite = input.value;drawRuns();break;
+      case 'ac-run-select':state.activeRun = input.value;drawRuns();break;
+      case 'ac-model':case 'ac-authorized':case 'ac-lookup':case 'ac-cite':changeDraft();break;
+      default:return;
+    }
+    remember();
+  });
+  restore(window.openai && window.openai.widgetState);
+  redraw();
+  window.addEventListener('openai:set_globals',event => {
+    const incoming = event.detail && event.detail.globals && event.detail.globals.widgetState;
+    if (incoming && JSON.stringify(incoming.privateContent) !== lastSnapshot) {restore(incoming);redraw();}
+  });
+})();
+</script>

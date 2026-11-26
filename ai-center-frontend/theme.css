@@ -1,0 +1,151 @@
+/* Shared roles for workspace extensions. Base light surfaces are defined in styles.css. */
+:root {
+  --surface-raised: #f4f7f2;
+  --surface-hover: #f5f9f4;
+  --control-border: #849a8b;
+  --accent-soft: #e3eee4;
+  --action-fill: #1c563f;
+  --action-ink: #ffffff;
+  --on-accent: var(--action-ink);
+  --warning-bg: #fbefd5;
+  --warning-ink: #704e12;
+  --danger-bg: #f9e8e3;
+  --danger-ink: #873b2e;
+}
+
+/* The compact appearance picker sits in the header in both modes. */
+.ac-top label:has(#ac-theme) {
+  display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; color: #eff6ef;
+}
+.ac-top #ac-theme {
+  color-scheme: dark; width: auto; max-width: 100%; min-height: 32px;
+  padding: 4px 7px; border: 1px solid #77988a; background: #233e32; color: #f2f6f0;
+  font-size: .84rem;
+}
+.ac-top #ac-theme:focus-visible { outline-color: #a3dfbf; }
+@media (pointer: coarse) { .ac-top #ac-theme { min-height: 44px; } }
+@media (max-width: 620px) {
+  .ac-top { flex-wrap: wrap; }
+  .ac-topgroup:has(#ac-theme) { flex-wrap: wrap; }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #f2f2f2;
+  --muted: #b6b6b6;
+  --paper: #1c1c1c;
+  --canvas: #131313;
+  --soft: #2a2a2a;
+  --line: #414141;
+  --forest: #ededed;
+  --deep: #101010;
+  --focus: #fff;
+  --gold: #bdbdbd;
+  --surface-raised: #212121;
+  --surface-hover: #303030;
+  --control-border: #757575;
+  --accent-soft: #343434;
+  --action-fill: #e3e3e3;
+  --action-ink: #151515;
+  --warning-bg: #353535;
+  --warning-ink: #f2f2f2;
+  --danger-bg: #e3e3e3;
+  --danger-ink: #161616;
+  accent-color: var(--forest);
+  -webkit-tap-highlight-color: rgb(255 255 255 / 14%);
+  scrollbar-color: #747474 var(--paper);
+}
+
+[data-theme="dark"]::selection, [data-theme="dark"] ::selection { color: #141414; background: #d8d8d8; }
+[data-theme="dark"] a:any-link { color: var(--forest); }
+[data-theme="dark"] .ac-mark, [data-theme="dark"] .ac-project,
+[data-theme="dark"] .ac-sample { border-color: var(--control-border); }
+[data-theme="dark"] .ac-mark span { background: var(--forest); }
+[data-theme="dark"] .ac-mark span:nth-child(2) { background: var(--gold); }
+[data-theme="dark"] :is(.ac-project,.ac-person,.ac-sample),
+[data-theme="dark"] .ac-top label:has(#ac-theme) { color: var(--ink); }
+[data-theme="dark"] .ac-avatar { color: var(--action-ink); background: var(--action-fill); }
+[data-theme="dark"] .ac-top #ac-theme {
+  color: var(--ink); background: var(--soft); border-color: var(--control-border);
+}
+[data-theme="dark"] .ac-top #ac-theme:focus-visible { outline-color: var(--focus); }
+
+/* Selected navigation uses a contrasting surface and an underline or border. */
+[data-theme="dark"] .ac-secondary-nav,
+[data-theme="dark"] .dm-layout .ac-secondary-nav { background: var(--surface-raised); }
+[data-theme="dark"] .dm-layout .ac-subnav,
+[data-theme="dark"] .dm-layout .ac-subnav::before { color: var(--muted); }
+[data-theme="dark"] .ac-subnav:hover { background: var(--surface-hover); color: var(--ink); }
+[data-theme="dark"] .ac-subnav[aria-current="page"],
+[data-theme="dark"] .dm-layout .ac-subnav[aria-current="page"] {
+  background: var(--accent-soft); color: var(--forest); border-color: var(--control-border); box-shadow: none;
+}
+[data-theme="dark"] :is(.dm-panel, .dm-table-wrap, .ln-inspector, .ln-node) {
+  background: var(--paper); border-color: var(--line); color: var(--ink);
+}
+[data-theme="dark"] :is(.ac-box, .ac-linebox, .catalog-panel) { box-shadow: none; }
+[data-theme="dark"] :is(.ac-data, .dm-table) :is(th,td) { border-color: var(--line); }
+[data-theme="dark"] :is(.ac-data, .dm-table) th { background: var(--surface-raised); color: var(--muted); }
+[data-theme="dark"] .ac-source-table tr[data-active]:hover td,
+[data-theme="dark"] .dm-table tbody tr:hover { background: var(--surface-hover); }
+
+/* Inputs, buttons and their selected/disabled/focus states. */
+[data-theme="dark"] :is(select,input:not([type]),input[type="text"],input[type="search"],input[type="number"],
+  input[type="date"],input[type="time"],input[type="url"],textarea) {
+  background-color: var(--paper); border-color: var(--control-border); color: var(--ink);
+}
+[data-theme="dark"] .se-field input:not([type]) {
+  min-height: 36px; padding: 6px 9px; border: 1px solid var(--control-border); border-radius: 5px;
+}
+@media (pointer: coarse) { [data-theme="dark"] .se-field input:not([type]) { min-height: 44px; } }
+[data-theme="dark"] :is(input,textarea)::placeholder { color: var(--muted); opacity: 1; }
+[data-theme="dark"] input[type="checkbox"], [data-theme="dark"] input[type="radio"] { accent-color: var(--forest); }
+[data-theme="dark"] .dm-field { color: var(--muted); }
+[data-theme="dark"] :is(.ac-btn,.dm-btn) { background: var(--paper); color: var(--ink); border-color: var(--control-border); }
+[data-theme="dark"] :is(.ac-btn,.dm-btn):hover:enabled { background: var(--surface-hover); }
+[data-theme="dark"] :is(.ac-primary,.dm-primary) { background: var(--action-fill); color: var(--action-ink); border-color: var(--action-fill); }
+[data-theme="dark"] :is(.ac-primary,.dm-primary):hover:enabled { background: #fff; color: var(--action-ink); }
+[data-theme="dark"] .dm-tabs button { background: transparent; color: var(--muted); }
+[data-theme="dark"] .dm-tabs button:hover { background: var(--surface-hover); }
+[data-theme="dark"] .dm-tabs button:is([aria-current=page],[aria-pressed=true]) { color: var(--forest); border-color: var(--forest); }
+[data-theme="dark"] .dm-table td .dm-btn { color: var(--forest); background: transparent; }
+[data-theme="dark"] .dm-table td .dm-btn:hover:enabled { background: transparent; }
+[data-theme="dark"] button:disabled { opacity: .6; }
+
+/* Corpus glyphs identify the collections. Statuses carry labels; fill and
+   border styles also distinguish success, pending work and errors. */
+[data-theme="dark"] .corpus-grid button:hover { border-color: var(--control-border); }
+[data-theme="dark"] .corpus-grid button[aria-pressed=true] { background: var(--accent-soft); border-color: var(--forest); }
+[data-theme="dark"] :is(.eu4,.anbennar,.history) { background: var(--soft); color: var(--ink); }
+[data-theme="dark"] :is(.corpus-chip,.source-icon) { background: var(--soft); color: var(--forest); border-color: var(--line); }
+[data-theme="dark"] .dm-badge { background: var(--accent-soft); color: var(--forest); }
+[data-theme="dark"] .dm-badge[data-status] { border: 1px solid transparent; }
+[data-theme="dark"] .dm-badge:is([data-status="manual"],[data-status="not built"],[data-status="archived"]) {
+  background: transparent; color: var(--muted); border-color: var(--control-border);
+}
+[data-theme="dark"] .dm-badge[data-status="failed"] {
+  background: var(--danger-bg); color: var(--danger-ink); font-weight: 700;
+}
+[data-theme="dark"] .dm-badge[data-status="rebuild required"] {
+  background: var(--warning-bg); color: var(--warning-ink); border: 1px dashed var(--muted);
+}
+[data-theme="dark"] :is(.ac-result,.dm-notice,.dm-source-feedback:not(:empty)) {
+  background: var(--soft); color: var(--ink); border-color: var(--muted);
+}
+[data-theme="dark"] .dm-notice[role="alert"] { background: var(--warning-bg); color: var(--warning-ink); border-color: var(--warning-ink); }
+[data-theme="dark"] .se-error { color: var(--ink); font-weight: 650; }
+[data-theme="dark"] .ac-source-dialog { box-shadow: 0 18px 80px rgb(0 0 0 / 40%); }
+[data-theme="dark"] .ac-source-dialog::backdrop { background: rgb(0 0 0 / 78%); }
+
+/* Lineage's SVG connector geometry is shared between the themes. */
+[data-theme="dark"] .ln-scroll { background: var(--canvas); }
+[data-theme="dark"] .ln-wire, [data-theme="dark"] .ln-arrow { stroke: #989898; }
+[data-theme="dark"] .ln-wire.ln-neighbor { stroke: var(--forest); }
+[data-theme="dark"] .ln-legend > span::before { border-color: #989898; }
+[data-theme="dark"] .ln-node { border-color: var(--control-border); }
+[data-theme="dark"] .ln-node[data-state=archived] { background: var(--soft); }
+[data-theme="dark"] .ln-node:is(:hover,:focus-visible,[aria-pressed=true]) { border-color: var(--forest); }
+[data-theme="dark"] .ln-node[aria-pressed=true] { background: var(--accent-soft); }
+@media (max-width: 620px) {
+  [data-theme="dark"] .corpus-chip { background: transparent; }
+}
