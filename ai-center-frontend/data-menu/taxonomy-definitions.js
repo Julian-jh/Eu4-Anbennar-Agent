@@ -101,11 +101,15 @@
         const open = expanded.has(folder.id) || Boolean(term && members.length && !search.collapsed.has(folder.id));
         const childrenId = 'td-' + kind + '-children-' + i;
         const qualifier = !pseudo && duplicates.has(folder.name.toLowerCase()) ? ' <small>' + esc(folder.id) + '</small>' : '';
+        const addDatasets = pseudo ? '' : '<button type="button" class="dm-link" data-add-datasets="' + esc(folder.id) +
+          '" aria-label="Add datasets to ' + esc(folder.name) + '">Add datasets</button>';
         return `<tbody><tr data-definition="${esc(folder.id)}"><th scope="row"><button type="button" class="td-folder" data-folder="${esc(folder.id)}"
           aria-expanded="${open}" aria-controls="${childrenId}"><span class="td-caret" aria-hidden="true"></span><span class="td-folder-icon" aria-hidden="true"></span>
           <span>${esc(folder.name)}${qualifier}</span></button></th><td>${esc(folder.description || '—')}</td><td>${pseudo ? '—' : folder.links}</td>
-          <td>${folder.source}</td><td>${folder.dataset}</td><td>${pseudo ? '' : '<button type="button" class="dm-link" data-edit>Edit</button>'}</td></tr></tbody>
-          <tbody id="${childrenId}" data-owner="${esc(folder.id)}"${open ? '' : ' hidden'}><tr><td class="td-children" colspan="6">${open ? memberTable(folder,members) : ''}</td></tr></tbody>`;
+          <td>${folder.source}</td><td>${folder.dataset}</td><td>${pseudo ? '' : '<div class="td-folder-actions">' + (!open ? addDatasets : '') +
+            '<button type="button" class="dm-link" data-edit>Edit</button></div>'}</td></tr></tbody>
+          <tbody id="${childrenId}" data-owner="${esc(folder.id)}"${open ? '' : ' hidden'}><tr><td class="td-children" colspan="6">${open ?
+            (addDatasets ? '<div class="td-member-action">' + addDatasets + '</div>' : '') + memberTable(folder,members) : ''}</td></tr></tbody>`;
       }).join('');
       while (table.tBodies.length) table.tBodies[0].remove();
       table.insertAdjacentHTML('beforeend',rows);
@@ -174,6 +178,27 @@
       const id = button.closest('[data-definition]')?.dataset.definition;
       if (button.hasAttribute('data-add')) edit();
       if (button.hasAttribute('data-edit')) edit(definitions.find(d => d.id === id));
+      if (button.hasAttribute('data-add-datasets')) {
+        const folderId = button.dataset.addDatasets;
+        function redraw(message,reveal) {
+          if (reveal) {
+            search.term = '';
+            search.collapsed.delete(folderId);
+          }
+          if (reveal && !expanded.has(folderId)) changeFolders([...expanded,folderId]);
+          else ctx.refresh();
+          const current = liveSection();
+          if (!current) return;
+          current.querySelector('output').textContent = message;
+          const replacement = [...current.querySelectorAll('[data-add-datasets]')].find(b => b.dataset.addDatasets === folderId);
+          if (replacement) replacement.focus();
+          else focusFolder(folderId);
+        }
+        window.TaxonomyAssignment.addDatasets(section,{store,kind,definition:definitions.find(d => d.id === folderId),
+          sources:ctx.sources,trigger:button,onSaved(count,pair) {
+            redraw(count + (count === 1 ? ' dataset assigned to ' : ' datasets assigned to ') + pair + '.',true);
+          },onLinked() { redraw('Domain / subject link saved.',false); }});
+      }
       if (button.hasAttribute('data-folder')) {
         const next = new Set(expanded);
         if (button.getAttribute('aria-expanded') === 'true') { next.delete(id); search.collapsed.add(id); }
@@ -186,7 +211,7 @@
         const asset = assetByKey.get(button.dataset.assignment);
         const folderId = button.closest('[data-owner]')?.dataset.owner;
         if (!asset || !folderId) return;
-        window.TaxonomyAssignment.open(section,{store,assets,asset,refresh:ctx.refresh,onSaved() {
+        window.TaxonomyAssignment.open(section,{store,asset,trigger:button,refresh:ctx.refresh,onSaved() {
           const current = liveSection();
           if (!current) return;
           current.querySelector('output').textContent = 'Assignment saved for ' + asset.name + '.';

@@ -936,6 +936,20 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     assignAssetPair(kind,id,pairId) {
       return commit(data => assignAssetPair(data,kind,id,pairId));
     },
+    assignDatasetsToPair(ids,pairId,expectedPairs) {
+      return commit(data => {
+        const pair = existing(data.domainSubjects,pairId,'domain–subject pair');
+        if (!pair.active) throw new Error('Choose an active domain–subject pair.');
+        const selection = selectedDatasets(data,ids);
+        for (const ds of selection) {
+          if (expectedPairs && ds.domainSubjectId !== expectedPairs[ds.id]) {
+            throw new Error('The classification of “' + ds.name + '” changed. Reopen the picker to review the latest assignments.');
+          }
+        }
+        for (const ds of selection) Object.assign(ds,{domainSubjectId:pair.id,subjectId:pair.subjectId});
+        return selection.length;
+      });
+    },
     assignAsset(kind,id,subjectId) {
       return commit(data => {
         if (!subjectId) return assignAssetPair(data,kind,id,'');
