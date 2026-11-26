@@ -3,8 +3,30 @@
   if (!root) return;
   const $ = (id) => root.querySelector('#ac-' + id);
   const all = (selector) => Array.from(root.querySelectorAll(selector));
-  const symbols = {'database':'▤','git-fork':'⑂','sliders-horizontal':'☷','activity':'∿','cable':'⇄','settings':'⚙︎'};
-  all('.ac-icon i').forEach(icon => {icon.dataset.fallback = symbols[icon.dataset.lucide] || '';});
+  const areaButtons = all('.ac-primary-nav [data-area]');
+  let touchHintTimer;
+  function clearTouchHint() {
+    clearTimeout(touchHintTimer);
+    for (const button of areaButtons) delete button.dataset.touchLabel;
+  }
+  for (const button of areaButtons) {
+    button.addEventListener('pointerenter',() => {delete button.dataset.dismissed;});
+    button.addEventListener('focus',() => {delete button.dataset.dismissed;});
+    button.addEventListener('pointerup',event => {
+      if (event.pointerType !== 'touch') return;
+      clearTouchHint();
+      delete button.dataset.dismissed;
+      button.dataset.touchLabel = '';
+      touchHintTimer = setTimeout(clearTouchHint,1500);
+    });
+  }
+  root.addEventListener('pointerdown',clearTouchHint);
+  document.addEventListener('keydown',event => {
+    if (event.key === 'Escape') {
+      clearTouchHint();
+      for (const button of areaButtons) button.dataset.dismissed = '';
+    }
+  });
   const navigation = {
     data: [['catalog','Sources','sources'],['datasets','Datasets','lifecycle'],['jobs','Jobs','lifecycle'],['taxonomy','Taxonomy','lifecycle'],['archive','Archive','lifecycle']],
     semantic: [['overview','Model overview','semantic'],['mappings','Field mappings','semantic'],['validation','Validation','semantic']],
@@ -217,7 +239,7 @@
     for (const button of all('[data-area]')) {
       if (button.dataset.area === route.area) {
         button.setAttribute('aria-current','true');
-        $('sections').setAttribute('aria-label',button.textContent.trim() + ' sections');
+        $('sections').setAttribute('aria-label',button.getAttribute('aria-label') + ' sections');
       } else button.removeAttribute('aria-current');
     }
     for (const button of all('[data-section]')) {

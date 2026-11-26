@@ -24,10 +24,6 @@
 }
 .ac-top #ac-theme:focus-visible { outline-color: #a3dfbf; }
 @media (pointer: coarse) { .ac-top #ac-theme { min-height: 44px; } }
-@media (max-width: 620px) {
-  .ac-top { flex-wrap: wrap; }
-  .ac-topgroup:has(#ac-theme) { flex-wrap: wrap; }
-}
 
 :root[data-theme="dark"] {
   color-scheme: dark;
