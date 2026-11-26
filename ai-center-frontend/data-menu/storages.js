@@ -80,7 +80,7 @@
       const lockHint = locked ? '<p class="dm-muted dm-storage-hint">Linked datasets use this destination. Reassign them to change its type or address.</p>' : '';
       const overlay = dialog(target ? 'Edit storage' : 'Add storage',
         '<div class="dm-storage-fields"><label class="dm-field">Storage name<input name="label" type="text" required></label>' +
-        '<label class="dm-field">Storage type<select name="type">' + options(target?.type || 'folder') + '</select></label></div>' +
+        '<label class="dm-field">Storage type<select name="type" aria-label="Storage type">' + options(target?.type || 'folder') + '</select></label></div>' +
         '<fieldset class="dm-storage-connection"><legend></legend><div class="dm-storage-fields" data-fields></div>' + lockHint + '</fieldset>' +
         '<label class="dm-field">Description (optional)<textarea name="detail" rows="2"></textarea></label>' +
         '<div class="dm-storage-trial"><button type="button" class="dm-btn" data-test>Test connection</button>' +
