@@ -15,7 +15,7 @@
 
   function session(store) {
     if (!sessions.has(store)) sessions.set(store, {
-      tab: 'runs', job: '', editor: null,
+      tab: 'runs', job: '',
       searches: {}, filters: {}, notice: null
     });
     return sessions.get(store);
@@ -41,16 +41,13 @@
     const option = (value, label, current) =>
       `<option value="${esc(value)}"${value === current ? ' selected' : ''}>${esc(label)}</option>`;
     const badge = value => `<span class="dm-badge" data-status="${esc(term(value))}">${esc(value)}</span>`;
-    const hasTaxTab = Object.hasOwn(taxonomyTabs,params.tab);
-    const legacySubjectLink = !params.tab && params.subject && !params.domain;
-    const taxTab = hasTaxTab ? params.tab : (legacySubjectLink ? 'subjects' : 'domains');
-    const showAssignments = taxTab !== 'matrix' && (params.view === 'assignments' || params.tab === 'assignments' || (!hasTaxTab && (params.domain || params.subject)));
-    const taxScope = area === 'taxonomy' ? JSON.stringify([taxTab,Boolean(showAssignments),params.domain || '',params.subject || '']) : '';
-    if (taxScope && (state.taxScope !== taxScope || !host.querySelector('[data-ops-view="taxonomy"]'))) {
-      state.editor = null;
-      state.taxScope = taxScope;
+    const legacyTaxonomy = !Object.hasOwn(params,'folders') && (params.domain || params.subject || params.view === 'assignments' || params.tab === 'assignments');
+    let taxTab = Object.hasOwn(taxonomyTabs,params.tab) ? params.tab : 'domains';
+    if (legacyTaxonomy && taxTab !== 'matrix') {
+      if (params.subject && !params.domain) taxTab = 'subjects';
+      if (params.domain && !params.subject) taxTab = 'domains';
     }
-    const notice = state.notice?.area === area && (!taxScope || state.notice.scope === taxScope) ? state.notice.text : '';
+    const notice = state.notice?.area === area ? state.notice.text : '';
     if (area === 'jobs') {
       state.job = params.job || '';
       state.tab = !state.job && params.tab === 'schedules' ? 'schedules' : 'runs';
@@ -141,69 +138,32 @@
         ...sources.map(asset => ({kind:'source',id:asset.id,name:asset.name,pairId:data.sourceDomainSubjects[asset.id] || ''}))
       ];
     }
-    const allPairs = area === 'taxonomy' ? data.domainSubjects : [];
-    const pairs = new Map(allPairs.map(pair => [pair.id,pair]));
-    const domainNames = new Map(data.domains.map(domain => [domain.id,domain.name]));
-    const subjectNames = new Map(data.subjects.map(subject => [subject.id,subject.name]));
-    const pathName = pair => domainNames.get(pair.domainId) + ' / ' + subjectNames.get(pair.subjectId);
-    function pairOptions(current) {
-      const available = allPairs.filter(pair => pair.active || pair.id === current);
-      available.sort((a,b) => pathName(a).localeCompare(pathName(b)));
-      return option('','Unassigned',current) + available.map(pair =>
-        option(pair.id,pathName(pair) + (pair.active ? '' : ' (retired)'),current)).join('');
-    }
-    function assignmentEditor() {
-      const editor = state.editor;
-      if (!editor) return '';
-      const list = assetRows().filter(asset => asset.kind === editor.type);
-      return `<section class="dm-panel dm-editor"><h2>Assign asset</h2>
-        <form data-assignment-editor><div class="dm-grid">
-          <label class="dm-field">Asset type<select name="assetType">${option('dataset', 'Dataset', editor.type)}${option('source', 'Source', editor.type)}</select></label>
-          <label class="dm-field">Asset<select name="assetId" required>${!list.length ? '<option value="">No active assets</option>' : ''}${list.map(asset => option(asset.id, asset.name, editor.assetId)).join('')}</select></label>
-          <label class="dm-field">Domain / Subject<select name="pairId">${pairOptions(editor.pairId)}</select></label>
-        </div><div class="dm-actions"><button type="submit" class="dm-btn dm-primary">Save assignment</button>${button('Cancel','cancel-edit')}</div></form></section>`;
-    }
-    function assignmentFilter(name,items,emptyLabel) {
-      const current = params[name] || '';
-      const options = [...items].sort((a,b) => a.name.localeCompare(b.name)).map(item => option(item.id,item.name,current));
-      if (name === 'subject') options.push(option('unassigned','Unassigned',current));
-      if (current && !items.some(item => item.id === current) && !(name === 'subject' && current === 'unassigned')) {
-        options.push(option(current,'Unavailable ' + name,current));
+    function mountDefinitions(host) {
+      const kind = taxTab === 'subjects' ? 'subject' : 'domain';
+      const records = kind === 'subject' ? data.subjects : data.domains;
+      const allowed = new Set([...records.map(record => record.id),':unassigned']);
+      const validated = values => Array.isArray(values) ? [...new Set(values.filter(id => allowed.has(id)))] : [];
+      let openFolderIds = [];
+      if (legacyTaxonomy) {
+        const selected = params[kind];
+        openFolderIds = selected ? validated([selected === 'unassigned' ? ':unassigned' : selected]) : [...allowed];
+      } else if (params.folders) {
+        try { openFolderIds = validated(JSON.parse(params.folders)); }
+        catch { /* Malformed folder URLs open the list with its folders collapsed. */ }
       }
-      const label = name === 'domain' ? 'Domain' : 'Subject';
-      return `<label class="dm-field">${label}<select data-tax-filter="${name}">${option('',emptyLabel,current)}${options.join('')}</select></label>`;
-    }
-    function assignmentPanel() {
-      const assets = assetRows();
-      const hasActivePairs = allPairs.some(pair => pair.active);
-      const rows = [];
-      for (const asset of assets) {
-        const pair = pairs.get(asset.pairId);
-        if (params.domain && params.domain !== pair?.domainId) continue;
-        if (params.subject && params.subject !== (pair?.subjectId || 'unassigned')) continue;
-        const domain = pair && domainNames.get(pair.domainId);
-        const subject = pair && subjectNames.get(pair.subjectId);
-        const action = hasActivePairs || pair ? `<button type="button" class="dm-btn" ${flags('assign',asset.id)} data-kind="${asset.kind}">${pair ? 'Edit assignment' : 'Assign'}</button>` : '—';
-        rows.push(`<tr data-row data-match="${esc([asset.name,domain,subject].join(' '))}" data-kind="${asset.kind}">
-          <td>${esc(asset.name)}</td><td>${asset.kind === 'dataset' ? 'Dataset' : 'Source'}</td>
-          <td>${esc(domain || '—')}</td><td>${esc(subject || 'Unassigned')} ${pair && !pair.active ? badge('Retired') : ''}</td><td>${action}</td></tr>`);
-      }
-      const backLabel = 'Back to ' + taxonomyTabs[taxTab];
-      return `<div class="dm-head"><div class="dm-toolbar">
-          <button type="button" class="dm-back-icon" ${flags('assignments-back',taxTab)} aria-label="${backLabel}" title="${backLabel}"><span aria-hidden="true">←</span></button>
-          <h2 tabindex="-1" data-assignment-heading>Asset assignments</h2></div>
-          ${assets.length && hasActivePairs ? button('Assign asset','assign','','dm-btn dm-primary') : ''}</div>
-        ${assignmentEditor()}<section class="dm-tax-assets" aria-label="Assigned sources and datasets">
-        ${hasActivePairs ? '' : '<p class="dm-muted">To enable an assignment, edit a subject and select its linked domains.</p>'}
-        <div class="dm-toolbar">${search('assignments','Asset, domain or subject')}
-          ${filter('assetKind','Asset type',[['','All assets'],['dataset','Datasets'],['source','Sources']])}
-          ${assignmentFilter('domain',data.domains,'All domains')}${assignmentFilter('subject',data.subjects,'All subjects')}</div>
-        ${grid(['Asset','Type','Domain','Subject','Actions'],rows,'assignments','No active assets match these filters.')}</section>`;
+      const assetFilter = legacyTaxonomy && params.domain && params.subject ? {domain:params.domain,subject:params.subject} : undefined;
+      window.TaxonomyDefinitions.mount(host,{
+        ...ctx,kind,assets:assetRows(),openFolderIds,assetFilter,
+        changeFolders(ids) {
+          const next = validated(ids);
+          go('taxonomy',next.length ? {tab:taxTab,folders:JSON.stringify(next)} : {tab:taxTab});
+        }
+      });
     }
     function taxonomyPage() {
       const tabs = Object.entries(taxonomyTabs).map(([id,name]) =>
         `<button type="button" class="dm-btn" ${flags('taxonomy-tab',id)} aria-pressed="${taxTab === id}">${name}</button>`).join('');
-      const content = showAssignments ? assignmentPanel() : taxTab === 'matrix' ? '<div data-tax-matrix></div>' : '<div data-tax-definitions></div>';
+      const content = taxTab === 'matrix' ? '<div data-tax-matrix></div>' : '<div data-tax-definitions></div>';
       return `<h1 class="sr-only">Taxonomy</h1><div class="dm-tabs" role="group" aria-label="Taxonomy views">${tabs}</div>${content}`;
     }
     function archivePage() {
@@ -229,16 +189,7 @@
     const matrix = wrapper.querySelector('[data-tax-matrix]');
     if (matrix) window.TaxonomyMatrix.mount(matrix,{store,assets:assetRows()});
     const definitions = wrapper.querySelector('[data-tax-definitions]');
-    if (definitions) window.TaxonomyDefinitions.mount(definitions,{
-      ...ctx,kind:taxTab === 'domains' ? 'domain' : 'subject',assets:assetRows(),openAssignments
-    });
-    function openAssignments(filters = {}) {
-      const next = {tab:taxTab,view:'assignments'};
-      if (filters.domain) next.domain = filters.domain;
-      if (filters.subject) next.subject = filters.subject;
-      go('taxonomy',next);
-      host.querySelector('[data-assignment-heading]')?.focus();
-    }
+    if (definitions) mountDefinitions(definitions);
     const scheduleEditor = wrapper.querySelector('[data-schedule-editor]');
     if (scheduleEditor) window.DataScheduleView.render(scheduleEditor,{store,esc,dataset:idOf(active,params.dataset)});
     function editSchedule(id) {
@@ -250,8 +201,7 @@
         const name = list.dataset.list;
         const query = term(state.searches[name]);
         const pairs = name === 'jobs' ? [['status', 'jobStatus'], ['type', 'jobType']]
-          : name === 'schedules' ? [['schedule', 'scheduleState']]
-          : name === 'assignments' ? [['kind', 'assetKind']] : [];
+          : name === 'schedules' ? [['schedule', 'scheduleState']] : [];
         let count = 0;
         for (const row of list.querySelectorAll('[data-row]')) {
           row.hidden = !term(row.dataset.match).includes(query) || pairs.some(([attr, key]) =>
@@ -261,12 +211,8 @@
         list.querySelector('[data-empty]').hidden = count > 0;
       }
     }
-    function repaint(focus) {
-      render(host, ctx);
-      if (focus) host.querySelector(focus)?.focus();
-    }
     function committed(message) {
-      state.notice = {area, text: message,scope:taxScope};
+      state.notice = {area,text:message};
       ctx.refresh();
     }
     function showError(err) {
@@ -285,26 +231,12 @@
       if (control.dataset.filter) {
         state.filters[control.dataset.filter] = control.value;
         applyFilters();
-      } else if (control.dataset.taxFilter) {
-        openAssignments({...params,[control.dataset.taxFilter]:control.value});
-        host.querySelector('[data-tax-filter="' + control.dataset.taxFilter + '"]')?.focus();
-      } else if (control.name === 'assetType') {
-        state.editor.type = control.value;
-        const first = assetRows().find(asset => asset.kind === control.value);
-        state.editor.assetId = first?.id || '';
-        state.editor.pairId = first?.pairId || '';
-        repaint('[name="assetType"]');
-      } else if (control.name === 'assetId') {
-        const asset = assetRows().find(row => row.kind === state.editor.type && row.id === control.value);
-        state.editor.assetId = control.value;
-        state.editor.pairId = asset?.pairId || '';
-        control.form.elements.pairId.innerHTML = pairOptions(state.editor.pairId);
       }
     });
     wrapper.addEventListener('click', event => {
       const target = event.target.closest('[data-op]');
       if (!target || !wrapper.contains(target)) return;
-      const {op, id, kind} = target.dataset;
+      const {op,id} = target.dataset;
       try {
         switch (op) {
           case 'schedule': editSchedule(id); return;
@@ -336,22 +268,11 @@
             return;
           }
           case 'taxonomy-tab':
-          case 'assignments-back':
             go('taxonomy',id === 'domains' ? {} : {tab:id});
             host.querySelector('[data-op="taxonomy-tab"][aria-pressed="true"]')?.focus();
             return;
-          case 'assign': {
-            const allAssets = assetRows();
-            const asset = id ? allAssets.find(row => row.kind === kind && row.id === id) : allAssets[0];
-            if (!asset) return;
-            state.editor = {type:asset.kind,assetId:asset.id,pairId:asset.pairId};
-            break;
-          }
-          case 'cancel-edit': state.editor = null; repaint('[data-assignment-heading]'); return;
           default: return;
         }
-        state.notice = null;
-        repaint('[data-assignment-editor] select');
       } catch (err) { showError(err); }
     });
     wrapper.addEventListener('submit', event => {
@@ -360,20 +281,6 @@
         editSchedule(event.target.elements.namedItem('dataset').value);
         return;
       }
-      if (!event.target.matches('[data-assignment-editor]')) return;
-      event.preventDefault();
-      const values = new FormData(event.target);
-      try {
-        const asset = assetRows().find(a => a.kind === values.get('assetType') && a.id === values.get('assetId'));
-        if (!asset) throw new Error('Choose an active asset.');
-        const pairId = values.get('pairId') || '';
-        if (asset.pairId !== pairId) store.assignAssetPair(asset.kind,asset.id,pairId);
-        const pair = pairs.get(pairId);
-        const message = pair ? asset.name + ' assigned to ' + pathName(pair) + '.' : asset.name + ' is unassigned.';
-        state.editor = null;
-        committed(message);
-        host.querySelector('[data-assignment-heading]')?.focus();
-      } catch (err) { showError(err); }
     });
     applyFilters();
   }

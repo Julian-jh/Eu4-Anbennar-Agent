@@ -67,7 +67,7 @@
           requestAnimationFrame(() => document.querySelector('.dm-catalog-filters input[type="search"]')?.focus());
         }
       });
-    },true);
+    });
     function confirmBatch(operation,trigger) {
       const records = subset.filter(ds => selectedIds.has(ds.id));
       if (!records.length) return;
@@ -110,7 +110,8 @@
         config.refresh();
         status(quantity + (deleting ? ' permanently deleted.' : ' archived. Restore from Archive.'));
         requestAnimationFrame(() => document.querySelector('.dm-catalog-filters input[type="search"]')?.focus());
-      },true);
+      },!deleting);
+      if (deleting) confirm.classList.add('dm-delete');
       dialog.append(title,description);
       if (!deleting) {
         const downstream = datasets.filter(ds => !ds.archived && !selectedIds.has(ds.id) && selectedIds.has(ds.upstreamId));
@@ -129,9 +130,11 @@
     }
     const archive = button('Archive selected',() => confirmBatch('archive',archive));
     const remove = button('Delete selected',() => confirmBatch('delete',remove));
+    remove.classList.add('dm-delete');
     const taskActions = window.DatasetBatch.actions({store,status,getSelected:() => subset.filter(ds => selectedIds.has(ds.id)),
       refresh:() => {selection.afterRunIds = [...selectedIds];config.refresh();}},ui);
-    batch.append(selectedCount,...taskActions,move,archive,remove,button('Clear selection',() => {selectedIds.clear();draw();}));
+    const clear = button('Clear selection',() => {selectedIds.clear();draw();});
+    batch.append(selectedCount,...taskActions,move,archive,clear,remove);
     results.append(count,batch,list,paging);
     content.append(filters,results);
 

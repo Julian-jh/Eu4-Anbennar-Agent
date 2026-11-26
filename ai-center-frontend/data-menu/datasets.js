@@ -226,7 +226,7 @@
     if (currentTab === 'preview') {
       const container = node('div');
       view.append(container);
-      window.DataPreviewView.render(container,{store,dataset:active},{node,button,group,table});
+      window.DataPreviewView.render(container,{store,dataset:active},{node,field,select,button,submit,form,group,table});
     }
     if (currentTab === 'documents') drawDocuments();
     if (currentTab === 'retrieval') drawRetrieval();
@@ -348,7 +348,7 @@
         ['Row grain',active.grain],['Deduplication key',active.keyField || 'Keep all rows']
       ] : [['Source',sourceName],['Source asset',active.asset]];
       const folderPath = id => window.DatasetFolderTree.path(folders,id).join(' / ') || 'Unfiled';
-      const folder = group('dm-toolbar',node('span',folderPath(active.folderId)));
+      const folder = group('dm-overview-folder',node('span',folderPath(active.folderId)));
       if (!active.archived) {
         const move = button('Move to folder',() => window.DatasetFolderPicker.open({
           folders,currentId:active.folderId || null,title:'Move dataset to folder',confirmLabel:'Move dataset',rootLabel:'Unfiled',trigger:move,
@@ -360,16 +360,29 @@
           }
         }));
         move.dataset.moveDataset = '';
+        move.classList.add('dm-overview-move');
         folder.append(move);
+      }
+      const plan = active.schedule;
+      let schedule = 'No active schedule';
+      if (plan?.enabled) {
+        schedule = window.DataSchedule.description(plan);
+        if (plan.nextAt) schedule += ' · Next run ' + window.DataSchedule.display(plan.nextAt,window.DataSchedule.settings(plan).zone);
       }
       const links = table(['Dataset property','Value'],[
         ['Folder',folder],
         ['Warehouse layer',layer ? layer.code + ' · ' + layer.name : active.layer],...inputRows,
-        ['Storage',location ? location.name : active.storage],['Rows',active.docs.length],
+        ['Storage',location ? location.name : active.storage],['Rows',active.docs.length],['Schedule',schedule],
         ['Retrieval',active.dataType === 'table' ? 'Structured table lookup' : 'Document search'],
         ...(active.dataType === 'table' ? [] : [['Retrieval index',active.indexStatus],['Last indexed',active.indexedAt ? new Date(active.indexedAt).toLocaleString() : 'Not yet indexed']])
       ]);
-      const overview = panel('Dataset details',links);
+      const title = node('h2','Dataset details');
+      title.id = 'dm-dataset-overview-title';
+      title.tabIndex = -1;
+      const header = group('dm-overview-header',title);
+      const overview = node('section',null,'dm-panel dm-overview');
+      overview.setAttribute('aria-labelledby',title.id);
+      overview.append(header,links);
       view.append(overview);
       if (active.archived) return;
       const edit = node('details');
@@ -383,30 +396,56 @@
       },group('dm-grid',field('Dataset name',nameInput),field('Storage location',storage)),
       group('dm-actions',submit('Save details'))));
       overview.append(edit);
-      const jobActions = group('dm-actions');
-      if (!active.docs.length) jobActions.append(button(detail ? 'Materialize detail records' : 'Ingest source',() => runJob('ingest'),true));
-      else jobActions.append(button(detail ? 'Refresh from upstream' : 'Refresh now',() => runJob('refresh'),true));
-      const jobs = panel(detail ? 'Materialization & refresh' : 'Ingestion & refresh',jobActions);
-      const nextRun = active.schedule?.enabled && active.schedule?.nextAt ? 'Next run: ' + new Date(active.schedule.nextAt).toLocaleString() :
-        active.schedule?.enabled ? 'Scheduled' : 'No active schedule';
-      jobs.append(node('p',nextRun,'dm-muted'));
-      view.append(jobs);
-      const archive = panel('Archive dataset');
-      const confirmBox = group('dm-notice',node('p',active.dataType === 'table' ? 'Archiving pauses scheduling and table lookup. Restoring the dataset makes its retained rows queryable again. Its schedule stays off.' :
-        'Archiving removes the index and turns off the schedule. Documents and configuration are retained. After restoration the schedule stays off. Rebuild the index before retrieval and re-enable scheduling when ready.'));
+      const populated = active.docs.length > 0;
+      const runLabel = populated ? (detail ? 'Refresh from upstream' : 'Refresh now') : (detail ? 'Materialize detail records' : 'Ingest source');
+      const run = button(runLabel,() => {
+        runJob(populated ? 'refresh' : 'ingest');
+        host.querySelector('[data-overview-run]')?.focus();
+      },true);
+      run.dataset.overviewRun = '';
+      const warning = node('p',active.dataType === 'table' ? 'Archiving pauses scheduling and table lookup. Restoring the dataset makes its retained rows queryable again. Its schedule stays off.' :
+        'Archiving removes the index and turns off the schedule. Documents and configuration are retained. After restoration the schedule stays off. Rebuild the index before retrieval and re-enable scheduling when ready.');
+      warning.id = 'dm-overview-archive-warning';
+      const confirmBox = group('dm-notice',warning);
+      confirmBox.id = 'dm-overview-archive-confirm';
       confirmBox.hidden = true;
-      const start = button('Archive dataset',() => {confirmBox.hidden = false;confirm.focus();});
-      const confirm = button('Confirm archive',() => execute(() => store.archive(active.id),'Dataset archived.'));
-      const cancel = button('Cancel',() => {confirmBox.hidden = true;start.focus();});
+      const start = button('Archive dataset',() => {
+        confirmBox.hidden = false;
+        start.setAttribute('aria-expanded','true');
+        confirm.focus();
+      });
+      start.setAttribute('aria-controls',confirmBox.id);
+      start.setAttribute('aria-expanded','false');
+      const confirm = button('Confirm archive',() => execute(() => store.archive(active.id),'Dataset archived.',() => {
+        ctx.refresh();
+        host.querySelector('#dm-dataset-overview-title')?.focus();
+      }));
+      confirm.setAttribute('aria-describedby',warning.id);
+      function cancelArchive() {
+        confirmBox.hidden = true;
+        start.setAttribute('aria-expanded','false');
+        start.focus();
+      }
+      const cancel = button('Cancel',cancelArchive);
+      confirmBox.addEventListener('keydown',event => {
+        if (event.key === 'Escape') {event.preventDefault();cancelArchive();}
+      });
       confirmBox.append(group('dm-actions',confirm,cancel));
-      archive.append(start,confirmBox);
-      view.append(archive);
+      const actions = group('dm-actions',run,start);
+      actions.setAttribute('role','group');
+      actions.setAttribute('aria-label','Dataset actions');
+      header.append(actions);
+      header.after(confirmBox);
     }
     function drawDocuments() {
       if (active.dataType === 'table') {
         const types = store.fieldTypesFor(active.id);
-        const rows = Object.entries(types).map(([name,type]) => [name,type,active.lookup.filterFields.includes(name) ? 'Yes' : 'No',active.lookup.returnFields.includes(name) ? 'Yes' : 'No']);
-        view.append(panel('Table fields',table(['Field','Type','Filterable','Returned'],rows)));
+        const {filterFields,returnFields,indexedFields} = active.lookup;
+        const rows = Object.entries(types).map(([name,type]) => [
+          name,type,filterFields.includes(name) ? 'Yes' : 'No',
+          returnFields.includes(name) ? 'Yes' : 'No',indexedFields.includes(name) ? 'Yes' : 'No'
+        ]);
+        view.append(panel('Table fields',table(['Field','Type','Filterable','Returned','Indexed'],rows)));
         return;
       }
       if (!active.docs.length) {
@@ -474,27 +513,7 @@
         return;
       }
       if (active.docs.length) index.append(button('Rebuild index',() => runJob('rebuild')));
-      if (active.indexStatus === 'Not built' && !active.indexedAt) {
-        const note = active.docs.length ? 'Build an index to search these documents.' :
-          isDetail(active) ? 'Materialize the detail dataset before building its index.' : 'Ingest the source before building its index.';
-        const lookup = panel('Document lookup',node('p',note,'dm-muted'));
-        view.append(index,runtime,lookup);
-        return;
-      }
-      const query = textInput();
-      const question = field('Search indexed documents',query);
-      const output = node('div');
-      output.setAttribute('aria-live','polite');
-      const lookup = form(() => {
-        const term = query.value.trim();
-        if (!term) {status('Enter a search term.',true);return;}
-        try {
-          const hits = store.search(active.id,term);
-          if (!hits.length) {output.replaceChildren(node('p','No indexed documents matched.','dm-muted'));return;}
-          output.replaceChildren(table(['Document','Source locator','Matched text'],hits.map(doc => [doc.title,doc.locator,doc.text])));
-        } catch (error) {output.replaceChildren(node('p',error.message,'dm-notice'));}
-      },question,group('dm-actions',submit('Search index',true)));
-      view.append(index,runtime,panel('Document lookup',node('p','This local preview matches text in the last built index.','dm-muted'),lookup,output));
+      view.append(index,runtime);
     }
   }
   window.DataDatasetView = {render};

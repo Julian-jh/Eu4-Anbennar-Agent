@@ -108,6 +108,11 @@
 [data-theme="dark"] .dm-table td .dm-btn:hover:enabled { background: transparent; }
 [data-theme="dark"] button:disabled { opacity: .6; }
 
+.dm-btn.dm-delete { background: #ac263a; border-color: #942033; color: #fff; }
+.dm-btn.dm-delete:hover:enabled { background: #8c1d30; }
+[data-theme="dark"] .dm-btn.dm-delete { background: #ae3045; border-color: #d66f7c; color: #fff; }
+[data-theme="dark"] .dm-btn.dm-delete:hover:enabled { background: #bf394c; }
+
 /* Corpus glyphs identify the collections. Statuses carry labels; fill and
    border styles also distinguish success, pending work and errors. */
 [data-theme="dark"] .corpus-grid button:hover { border-color: var(--control-border); }

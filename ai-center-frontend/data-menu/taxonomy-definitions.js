@@ -1,28 +1,52 @@
 (() => {
   'use strict';
 
-  function totals(data, assets, kind, definitions) {
-    const axis = kind === 'domain' ? 'domainId' : 'subjectId';
-    const counts = new Map(definitions.map(d => [d.id, {links:0,source:0,dataset:0}]));
-    const pairById = new Map();
+  const unassigned = ':unassigned';
+  const searches = new WeakMap();
+
+  function foldersFor(data, assets, kind, definitions) {
+    const axis = kind + 'Id';
+    const makeFolder = definition => ({...definition,links:0,source:0,dataset:0,members:[]});
+    const folders = new Map(definitions.map(d => [d.id,makeFolder(d)]));
+    folders.set(unassigned,makeFolder({id:unassigned,name:'Unassigned'}));
+    const byPair = new Map();
     for (const pair of data.domainSubjects) {
-      pairById.set(pair.id,pair);
-      if (pair.active) counts.get(pair[axis]).links++;
+      byPair.set(pair.id,pair);
+      const folder = folders.get(pair[axis]);
+      if (pair.active && folder) folder.links++;
     }
+    const seen = new Set();
     for (const asset of assets) {
-      const pair = pairById.get(asset.pairId);
-      if (pair) counts.get(pair[axis])[asset.kind]++;
+      const key = JSON.stringify([asset.kind,asset.id]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const pair = byPair.get(asset.pairId);
+      const folder = folders.get(asset.pairId ? pair?.[axis] : unassigned);
+      if (folder) {
+        folder.members.push({asset,pair});
+        folder[asset.kind]++;
+      }
     }
-    return counts;
+    for (const folder of folders.values()) folder.members.sort((a,b) => a.asset.name.localeCompare(b.asset.name));
+    return [...folders.values()];
   }
 
   function mount(host, ctx) {
-    const {kind,store,assets,esc,openAssignments} = ctx;
+    const {kind,store,assets,esc,openFolderIds = [],changeFolders,assetFilter = {}} = ctx;
     const data = store.snapshot();
     const isDomain = kind === 'domain';
     const label = isDomain ? 'Domain' : 'Subject';
     const definitions = [...(isDomain ? data.domains : data.subjects)].sort((a,b) => a.name.localeCompare(b.name));
-    const counts = totals(data,assets,kind,definitions);
+    const folders = foldersFor(data,assets,kind,definitions);
+    const relatedLabel = isDomain ? 'Subject' : 'Domain';
+    const counterparts = new Map((isDomain ? data.subjects : data.domains).map(d => [d.id,d.name]));
+    const expanded = new Set(openFolderIds);
+    const scope = JSON.stringify([kind,assetFilter.domain,assetFilter.subject]);
+    let search = searches.get(store);
+    if (!search || search.scope !== scope) {
+      search = {scope,term:'',collapsed:new Set()};
+      searches.set(store,search);
+    }
     const duplicates = new Set();
     const seen = new Set();
     for (const {name} of definitions) {
@@ -30,26 +54,74 @@
       if (seen.has(key)) duplicates.add(key);
       seen.add(key);
     }
-    const rows = definitions.map(d => {
-      const count = counts.get(d.id);
-      const qualifier = duplicates.has(d.name.toLowerCase()) ? ' <small class="dm-muted">' + esc(d.id) + '</small>' : '';
-      return `<tr data-definition="${esc(d.id)}"><th scope="row">${esc(d.name)}${qualifier}</th>
-        <td>${esc(d.description || '—')}</td><td>${count.links}</td><td>${count.source}</td><td>${count.dataset}</td>
-        <td><div class="dm-actions"><button type="button" class="dm-link" data-edit>Edit</button>
-        <button type="button" class="dm-link" data-assets>View assets</button></div></td></tr>`;
-    }).join('');
     const section = document.createElement('section');
     section.setAttribute('aria-label',label + ' definitions');
     section.className = 'dm-tax-assets td-definitions';
+    section.dataset.projection = kind;
     section.innerHTML = `<div class="dm-head"><strong>${definitions.length} ${kind}${definitions.length === 1 ? '' : 's'}</strong>
-      <div class="dm-actions">${isDomain ? '<button type="button" class="dm-btn" data-all-assets>Asset assignments</button>' : ''}
+      <div class="dm-actions"><label class="td-search"><span class="sr-only">Search assets</span><input type="search" placeholder="Search assets" value="${esc(search.term)}"></label>
       <button type="button" class="dm-btn dm-primary" data-add>Add ${kind}</button></div></div>
-      <p class="dm-muted">Counts include active sources and datasets with a saved assignment, including assignments to retired links.</p>
-      <div class="dm-table-wrap"><table class="dm-table"><thead><tr><th scope="col">${label}</th><th scope="col">Definition</th>
+      <div class="dm-table-wrap"><table class="dm-table td-folders" aria-label="${label} folders"><thead><tr><th scope="col">${label}</th><th scope="col">Definition</th>
       <th scope="col">${isDomain ? 'Linked subjects' : 'Linked domains'}</th><th scope="col">Sources</th><th scope="col">Datasets</th><th scope="col">Actions</th>
-      </tr></thead><tbody>${rows || '<tr><td colspan="6">No definitions yet.</td></tr>'}</tbody></table></div>
+      </tr></thead></table></div>
       <output class="dm-muted" aria-live="polite"></output>`;
     host.replaceChildren(section);
+    const table = section.querySelector('.td-folders');
+    const stableHost = host.closest('main') || host;
+    const liveSection = () => stableHost.querySelector('.td-definitions[data-projection="' + kind + '"]');
+    const assetByKey = new Map(assets.map(asset => [JSON.stringify([asset.kind,asset.id]),asset]));
+    function counterpart(pair) {
+      return pair ? counterparts.get(pair[isDomain ? 'subjectId' : 'domainId']) || 'Unavailable' : '—';
+    }
+    function matches({asset,pair},term) {
+      if (assetFilter.domain && assetFilter.domain !== pair?.domainId) return false;
+      if (assetFilter.subject && assetFilter.subject !== pair?.subjectId) return false;
+      return !term || [asset.name,asset.id,asset.kind,counterpart(pair)].some(s => s.toLowerCase().includes(term));
+    }
+    function memberTable(folder,members) {
+      if (!members.length) return '<p class="td-empty">' +
+        (folder.members.length ? 'No matching assets.' : folder.id === unassigned ? 'All assets have an assignment.' : 'No assets assigned.') + '</p>';
+      const rows = members.map(({asset,pair}) => {
+        const action = pair ? 'Edit assignment' : 'Assign';
+        return `<tr><th scope="row">${esc(asset.name)}</th><td>${asset.kind === 'source' ? 'Source' : 'Dataset'}</td>
+          <td>${esc(counterpart(pair))}${pair && !pair.active ? ' <span class="td-retired">Retired</span>' : ''}</td>
+          <td><button type="button" class="dm-link" data-assignment="${esc(JSON.stringify([asset.kind,asset.id]))}">${action}</button></td></tr>`;
+      }).join('');
+      return `<table class="td-members" aria-label="Assets in ${esc(folder.name)}"><thead><tr><th scope="col">Asset</th><th scope="col">Type</th>
+        <th scope="col">${relatedLabel}</th><th scope="col">Actions</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+    function drawFolders() {
+      const term = search.term.trim().toLowerCase();
+      let matchCount = 0;
+      const rows = folders.map((folder,i) => {
+        const pseudo = folder.id === unassigned;
+        const members = folder.members.filter(member => matches(member,term));
+        matchCount += members.length;
+        if (term && !members.length && !pseudo) return '';
+        const open = expanded.has(folder.id) || Boolean(term && members.length && !search.collapsed.has(folder.id));
+        const childrenId = 'td-' + kind + '-children-' + i;
+        const qualifier = !pseudo && duplicates.has(folder.name.toLowerCase()) ? ' <small>' + esc(folder.id) + '</small>' : '';
+        return `<tbody><tr data-definition="${esc(folder.id)}"><th scope="row"><button type="button" class="td-folder" data-folder="${esc(folder.id)}"
+          aria-expanded="${open}" aria-controls="${childrenId}"><span class="td-caret" aria-hidden="true"></span><span class="td-folder-icon" aria-hidden="true"></span>
+          <span>${esc(folder.name)}${qualifier}</span></button></th><td>${esc(folder.description || '—')}</td><td>${pseudo ? '—' : folder.links}</td>
+          <td>${folder.source}</td><td>${folder.dataset}</td><td>${pseudo ? '' : '<button type="button" class="dm-link" data-edit>Edit</button>'}</td></tr></tbody>
+          <tbody id="${childrenId}" data-owner="${esc(folder.id)}"${open ? '' : ' hidden'}><tr><td class="td-children" colspan="6">${open ? memberTable(folder,members) : ''}</td></tr></tbody>`;
+      }).join('');
+      while (table.tBodies.length) table.tBodies[0].remove();
+      table.insertAdjacentHTML('beforeend',rows);
+      if (term) section.querySelector('output').textContent = matchCount + (matchCount === 1 ? ' matching asset.' : ' matching assets.');
+    }
+    function focusFolder(id) {
+      const control = [...(liveSection()?.querySelectorAll('[data-folder]') || [])].find(b => b.dataset.folder === id);
+      (control || liveSection()?.querySelector('.td-search input'))?.focus();
+    }
+    section.querySelector('.td-search input').addEventListener('input',event => {
+      search.term = event.target.value;
+      search.collapsed.clear();
+      section.querySelector('output').textContent = '';
+      drawFolders();
+    });
+    drawFolders();
 
     function edit(record) {
       const dialog = document.createElement('dialog');
@@ -81,9 +153,12 @@
         try {
           const id = isDomain ? store.saveDomain(change) : store.saveSubject({...change,domainIds:fields.getAll('domainIds')});
           dialog.close();
-          mount(host,ctx);
-          host.querySelector('output').textContent = change.name + ' saved.';
-          Array.from(host.querySelectorAll('[data-definition]')).find(row => row.dataset.definition === id)?.querySelector('[data-edit]')?.focus();
+          search.term = '';
+          search.collapsed.clear();
+          ctx.refresh();
+          const current = liveSection();
+          current.querySelector('output').textContent = change.name + ' saved.';
+          Array.from(current.querySelectorAll('[data-definition]')).find(row => row.dataset.definition === id)?.querySelector('[data-edit]')?.focus();
         } catch (error) {
           const feedback = dialog.querySelector('[role=alert]');
           feedback.hidden = false;
@@ -99,8 +174,27 @@
       const id = button.closest('[data-definition]')?.dataset.definition;
       if (button.hasAttribute('data-add')) edit();
       if (button.hasAttribute('data-edit')) edit(definitions.find(d => d.id === id));
-      if (button.hasAttribute('data-assets')) openAssignments({[kind]:id});
-      if (button.hasAttribute('data-all-assets')) openAssignments({});
+      if (button.hasAttribute('data-folder')) {
+        const next = new Set(expanded);
+        if (button.getAttribute('aria-expanded') === 'true') { next.delete(id); search.collapsed.add(id); }
+        else { next.add(id); search.collapsed.delete(id); }
+        if (expanded.has(id) === next.has(id)) drawFolders();
+        else changeFolders([...next]);
+        focusFolder(id);
+      }
+      if (button.hasAttribute('data-assignment')) {
+        const asset = assetByKey.get(button.dataset.assignment);
+        const folderId = button.closest('[data-owner]')?.dataset.owner;
+        if (!asset || !folderId) return;
+        window.TaxonomyAssignment.open(section,{store,assets,asset,refresh:ctx.refresh,onSaved() {
+          const current = liveSection();
+          if (!current) return;
+          current.querySelector('output').textContent = 'Assignment saved for ' + asset.name + '.';
+          const target = [...current.querySelectorAll('[data-assignment]')].find(b => b.dataset.assignment === button.dataset.assignment);
+          if (target) target.focus();
+          else focusFolder(folderId);
+        }});
+      }
     });
   }
   window.TaxonomyDefinitions = {mount};

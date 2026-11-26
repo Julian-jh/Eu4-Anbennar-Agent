@@ -48,7 +48,43 @@
   .tm-viewport { --tm-row-width: 8rem; --tm-subject-width: 7rem; }
   .tm-table :is(th,td) { padding-inline: 8px; }
 }
-.td-definitions .dm-table { min-width: 680px; }
-.td-definitions thead th { white-space: nowrap; }
-.td-definitions td:last-child .dm-actions { gap: 6px 12px; }
-.td-definitions td:last-child button { white-space: nowrap; }
+.td-definitions .dm-table-wrap { position: relative; }
+.td-definitions .td-folders { min-width: 630px; }
+.td-folders > thead th { white-space: nowrap; }
+.td-definitions .td-folders [data-definition] > td { border-bottom: 1px solid var(--line); }
+.td-search { min-width: 0; }
+.td-search input { width: min(13rem,100%); }
+.td-folder {
+  display: inline-flex; align-items: center; gap: 7px; max-width: 100%; min-height: 30px;
+  padding: 2px 1px; border: 0; background: transparent; color: var(--ink); text-align: start;
+  font: inherit; font-weight: 600; cursor: pointer;
+}
+.td-folder:hover { color: var(--forest); text-decoration: underline; text-underline-offset: 3px; }
+.td-caret {
+  flex: 0 0 auto; width: 6px; height: 6px; border-inline-end: 1.5px solid currentColor;
+  border-block-end: 1.5px solid currentColor; transform: rotate(-45deg);
+}
+.td-folder[aria-expanded=true] .td-caret { transform: rotate(45deg); }
+.td-folder-icon {
+  position: relative; flex: 0 0 auto; width: 14px; height: 10px; border: 1px solid currentColor;
+  border-radius: 2px; color: var(--muted);
+}
+.td-folder-icon::before {
+  content: ""; position: absolute; top: -4px; left: 0; width: 6px; height: 3px;
+  border: 1px solid currentColor; border-bottom: 0; border-radius: 2px 2px 0 0;
+}
+.td-definitions .td-folders .td-children { padding: 0 0 0 20px; background: var(--surface-raised); }
+.td-members {
+  width: 100%; border-spacing: 0; border-collapse: collapse;
+  border-inline-start: 2px solid var(--line); text-align: start;
+}
+.td-definitions .td-members th,.td-definitions .td-members td { padding: 6px 10px; }
+.td-definitions .td-members thead th { text-align: start; font-size: .76rem; color: var(--muted); }
+.td-definitions .td-members tbody tr > td { border-bottom: 1px solid var(--line); }
+.td-definitions .td-members tbody th[scope=row] { min-width: 0; font-weight: 550; }
+.td-members td:last-child { width: 1%; white-space: nowrap; }
+.td-retired { color: var(--muted); font-size: .78rem; padding-inline-start: 5px; }
+.td-empty { margin: 0; padding: 8px 12px; color: var(--muted); }
+@media (pointer: coarse) {
+  .td-folder,.td-members button { min-height: 44px; }
+}

@@ -43,7 +43,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     ds.dataType = retrievalType(ds);
     if (ds.dataType === 'table') {
       const fields = fieldsForRecord(ds);
-      ds.lookup = {filterFields:[...fields],returnFields:[...fields]};
+      ds.lookup = {filterFields:[...fields],returnFields:[...fields],indexedFields:[]};
       Object.assign(ds,{snapshotDocs:[],buildSignature:null,indexedAt:null,indexStatus:'Not applicable'});
       if (ds.schedule.type === 'rebuild') Object.assign(ds.schedule,{type:'refresh',enabled:false,nextAt:null});
     }
@@ -94,10 +94,13 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     const time = Date.parse(value + 'T00:00:00Z');
     return Number.isFinite(time) && new Date(time).toISOString().slice(0,10) === value;
   }
+  const tableCaches = new WeakMap();
+  const valueFor = (doc,field) => Object.hasOwn(doc.values || {},field) ? doc.values[field] : null;
+  const textKey = value => (typeof value === 'object' ? JSON.stringify(value) : String(value)).trim().toLowerCase();
   function fieldType(ds, field) {
     let type;
     for (const doc of ds.docs) {
-      const value = doc.values?.[field];
+      const value = valueFor(doc,field);
       if (blank(value)) continue;
       const normalized = typeof value === 'string' ? value.trim() : value;
       const current = isDate(normalized) ? 'Date' : numberPattern.test(String(normalized)) && Number.isFinite(Number(normalized)) ? 'Number' : 'Text';
@@ -106,19 +109,45 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     }
     return type || 'Text';
   }
-  function rowCondition(ds, condition, allowed) {
+  function tableCache(ds) {
+    // Ingestion and refresh replace this array. Positions and types belong to that materialization only.
+    let cache = tableCaches.get(ds.docs);
+    if (!cache) {
+      const types = new Map(fieldsForRecord(ds).map(field => [field,fieldType(ds,field)]));
+      cache = {types,indexes:new Map()};
+      if (ds.docs.length) tableCaches.set(ds.docs,cache);
+    }
+    return cache;
+  }
+  function indexedPositions(ds,cache,condition) {
+    const {field,value} = condition;
+    const keyFor = cache.types.get(field) === 'Number' ? Number : textKey;
+    let buckets = cache.indexes.get(field);
+    if (!buckets) {
+      buckets = new Map();
+      ds.docs.forEach((doc,position) => {
+        const raw = valueFor(doc,field);
+        if (blank(raw)) return;
+        const key = keyFor(raw);
+        if (!buckets.has(key)) buckets.set(key,[]);
+        buckets.get(key).push(position);
+      });
+      cache.indexes.set(field,buckets);
+    }
+    return buckets.get(keyFor(value)) || [];
+  }
+  function rowCondition(types, condition, allowed) {
     const {field,op,value} = condition || {};
     if (!allowed.has(field)) throw new Error('Choose a configured filter field.');
-    const get = doc => Object.hasOwn(doc.values || {},field) ? doc.values[field] : null;
+    const get = doc => valueFor(doc,field);
     if (op === 'empty') return doc => blank(get(doc));
     if (op === 'not_empty') return doc => !blank(get(doc));
     if (blank(value)) throw new Error('Enter a value for ' + field + '.');
-    const string = v => (typeof v === 'object' ? JSON.stringify(v) : String(v)).trim().toLowerCase();
-    if (op === 'contains') return doc => !blank(get(doc)) && string(get(doc)).includes(string(value));
-    const type = fieldType(ds,field);
+    if (op === 'contains') return doc => !blank(get(doc)) && textKey(get(doc)).includes(textKey(value));
+    const type = types.get(field);
     if (type === 'Number' && (!numberPattern.test(String(value).trim()) || !Number.isFinite(Number(value)))) throw new Error('Enter a number for ' + field + '.');
     if (type === 'Date' && !isDate(String(value).trim())) throw new Error('Enter a valid YYYY-MM-DD date for ' + field + '.');
-    const comparable = type === 'Number' ? Number : string;
+    const comparable = type === 'Number' ? Number : textKey;
     const target = comparable(value);
     const comparisons = {eq:v=>v===target,ne:v=>v!==target,gt:v=>v>target,gte:v=>v>=target,lt:v=>v<target,lte:v=>v<=target};
     if (!Object.hasOwn(comparisons,op) || type === 'Text' && !['eq','ne'].includes(op)) throw new Error('Choose a supported operator for ' + field + '.');
@@ -211,7 +240,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       ],
       domainSubjects:[reignPair,missionsPair,domainSubject('governance','dynastic-succession'),domainSubject('diplomacy','dynastic-succession')],
       sourceDomainSubjects:{register:reignPair.id,guides:missionsPair.id},
-      sourceSubjects:{register:reignPair.subjectId,guides:missionsPair.subjectId},sourceOverrides:{},version:5};
+      sourceSubjects:{register:reignPair.subjectId,guides:missionsPair.subjectId},sourceOverrides:{},version:6};
   }
   function legacyValues(doc, knownFields) {
     // The old text format concatenated the field name and value in source order.
@@ -285,7 +314,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         if (raw) {
           if (reuseUnchanged && memory && lastReadValue === raw) return memory;
           const data = JSON.parse(raw);
-          if ([1,2,3,4,5].includes(data.version) && Array.isArray(data.datasets) && Array.isArray(data.jobs)) {
+          if ([1,2,3,4,5,6].includes(data.version) && Array.isArray(data.datasets) && Array.isArray(data.jobs)) {
             if (data.version === 1) migrateWarehouse(data);
             if (data.version === 2) {
               data.folders = initialFolders(data.datasets);
@@ -299,6 +328,11 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
             }
             if (data.version === 4) {
               migrateTaxonomy(data);
+              upgraded = true;
+            }
+            if (data.version === 5) {
+              for (const ds of data.datasets) if (ds.dataType === 'table') ds.lookup.indexedFields ??= [];
+              data.version = 6;
               upgraded = true;
             }
             for (const entry of [...data.domains,...data.subjects]) {
@@ -400,6 +434,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       const records = selectedDatasets(data,ids);
       const stamp = now();
       for (const ds of records) {
+        tableCaches.delete(ds.docs);
         Object.assign(ds,{archived:true,archivedAt:stamp,snapshotDocs:[],buildSignature:null,indexedAt:null,
           indexStatus:ds.dataType === 'table' ? 'Not applicable' : 'Not built',
           schedule:{...ds.schedule,enabled:false,nextAt:null}});
@@ -449,6 +484,12 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       const docs = isDetail ? materialize(upstream, ds.keyField) : readDocuments(existing(sources,ds.sourceId,'source'),ds.asset);
       const selection = new Map(ds.docs.map(d => [d.id,d.included]));
       ds.docs = docs.map(d => ({...d,included:selection.get(d.id) ?? true}));
+      if (ds.dataType === 'table') {
+        const fields = new Set(fieldsForRecord(ds));
+        for (const setting of ['filterFields','returnFields','indexedFields']) {
+          ds.lookup[setting] = ds.lookup[setting].filter(field => fields.has(field));
+        }
+      }
       updateIndexStatus(ds);
       detail = isDetail ? 'Materialized ' + docs.length + ' detail row(s) from ' + upstream.name + '.' :
         (type === 'ingest' ? 'Ingested ' : 'Refreshed ') + ds.docs.length +
@@ -555,8 +596,10 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       const {name,layer,dataType,indexStatus,archived,sourceId,asset,upstreamId} = ds;
       const source = sourceFor(sourceId);
       const fields = sourceAsset(sourceId,asset)?.fields || [];
+      const lookup = ds.dataType === 'table' ? {filterFields:[...ds.lookup.filterFields],
+        returnFields:[...ds.lookup.returnFields],indexedFields:[...ds.lookup.indexedFields]} : undefined;
       return {folders:data.folders,datasets:[{id,name,layer,dataType,indexStatus,archived,sourceId,asset,upstreamId,
-        sourceName:source?.name || sourceId,fields,recordCount:ds.docs.length}]};
+        sourceName:source?.name || sourceId,fields,lookup,recordCount:ds.docs.length}]};
     },
     previewPage(id,requested = 1) {
       const ds = existing(read(true).datasets,id,'dataset');
@@ -622,40 +665,50 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     fieldsFor(id) { return fieldsForRecord(existing(read().datasets,id,'dataset')); },
     fieldTypesFor(id) {
       const ds = existing(read(true).datasets,id,'dataset');
-      return Object.fromEntries(fieldsForRecord(ds).map(field => [field,fieldType(ds,field)]));
+      return Object.fromEntries(tableCache(ds).types);
     },
-    setLookupFields(id,{filterFields,returnFields}) {
+    setLookupFields(id,patch) {
       return commit(data => {
         const ds = active(data,id);
         if (ds.dataType !== 'table') throw new Error('Field selection is available for structured tables.');
         const fields = new Set(fieldsForRecord(ds));
+        const {filterFields=ds.lookup.filterFields,returnFields=ds.lookup.returnFields} = patch;
         for (const list of [filterFields,returnFields]) {
           if (!Array.isArray(list) || list.some(field => !fields.has(field))) throw new Error('Choose fields from this table.');
         }
         if (!returnFields.length) throw new Error('Select at least one return field.');
-        ds.lookup = {filterFields:[...new Set(filterFields)],returnFields:[...new Set(returnFields)]};
+        const filtering = new Set(filterFields);
+        const indexed = patch.indexedFields ?? ds.lookup.indexedFields.filter(field => filtering.has(field));
+        if (!Array.isArray(indexed) || indexed.some(field => !filtering.has(field))) throw new Error('Enable filtering on each indexed field.');
+        ds.lookup = {filterFields:[...filtering],returnFields:[...new Set(returnFields)],indexedFields:[...new Set(indexed)]};
+        tableCaches.delete(ds.docs);
       });
     },
-    queryRows(id,conditions=[],limit=20) {
+    queryRows(id,conditions=[],limit=20,offset=0) {
       const ds = existing(read(true).datasets,id,'dataset');
       if (ds.archived) throw new Error('Restore this table before running a query.');
       if (ds.dataType !== 'table') throw new Error('Structured conditions apply only to tables.');
       if (!Array.isArray(conditions)) throw new Error('Supply a list of query conditions.');
       if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('Use a row limit between 1 and 100.');
-      const available = new Set(fieldsForRecord(ds));
-      const fields = ds.lookup.returnFields.filter(field => available.has(field));
+      if (!Number.isSafeInteger(offset) || offset < 0) throw new Error('Use a nonnegative row offset.');
+      const cache = tableCache(ds);
+      const fields = ds.lookup.returnFields.filter(field => cache.types.has(field));
       if (!fields.length) throw new Error('Select at least one available return field.');
-      const allowed = new Set(ds.lookup.filterFields.filter(field => available.has(field)));
-      const predicates = conditions.map(condition => rowCondition(ds,condition,allowed));
+      const allowed = new Set(ds.lookup.filterFields.filter(field => cache.types.has(field)));
+      const predicates = conditions.map(condition => rowCondition(cache.types,condition,allowed));
+      const indexed = conditions.find(c => c.op === 'eq' && ds.lookup.indexedFields.includes(c.field));
+      const positions = indexed ? indexedPositions(ds,cache,indexed) : null;
+      const examinedRows = positions ? positions.length : ds.docs.length;
       const rows = [];
       let total = 0;
-      for (const doc of ds.docs) {
+      for (let i=0;i<examinedRows;i++) {
+        const doc = ds.docs[positions ? positions[i] : i];
         if (!predicates.every(matches => matches(doc))) continue;
+        if (total >= offset && rows.length < limit) rows.push({id:doc.id,locator:doc.locator,
+          values:Object.fromEntries(fields.map(field => [field,valueFor(doc,field)]))});
         total++;
-        if (rows.length < limit) rows.push({locator:doc.locator,values:Object.fromEntries(fields.map(field =>
-          [field,Object.hasOwn(doc.values || {},field) ? doc.values[field] : null]))});
       }
-      return {fields,rows,total};
+      return {fields,rows,total,offset,usedIndexes:indexed ? [indexed.field] : [],examinedRows};
     },
     saveLayer({code,name,kind}) {
       return commit(data => {
