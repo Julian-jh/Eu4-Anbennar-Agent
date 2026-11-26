@@ -57,7 +57,68 @@
         }
       });
     },true);
-    batch.append(selectedCount,move,button('Clear selection',() => {selectedIds.clear();draw();}));
+    function confirmBatch(operation,trigger) {
+      const records = subset.filter(ds => selectedIds.has(ds.id));
+      if (!records.length) return;
+      const deleting = operation === 'delete';
+      const quantity = records.length + (records.length === 1 ? ' dataset' : ' datasets');
+      const dialog = node('dialog',null,'dm-bulk-dialog');
+      const title = node('h2',(deleting ? 'Permanently delete ' : 'Archive ') + quantity + '?');
+      title.id = 'dm-bulk-confirm-title';
+      dialog.setAttribute('aria-labelledby',title.id);
+      let explanation = 'Stored data, configuration, schedules and indexes will be permanently removed. This cannot be undone. Past jobs remain in job history.';
+      if (!deleting) {
+        explanation = 'Schedules will stop. Restore from Archive to recover the data and configuration, then re-enable any schedules you need.';
+        if (records.some(ds => ds.dataType === 'table')) explanation += ' Restored tables are immediately available for lookup.';
+        if (records.some(ds => ds.dataType !== 'table')) explanation += ' Document retrieval indexes will be removed. Rebuild them after restoring the documents.';
+      }
+      const description = node('p',explanation);
+      description.id = 'dm-bulk-description';
+      dialog.setAttribute('aria-describedby',description.id);
+      const details = node('details');
+      details.append(node('summary','Selected datasets (' + records.length + ')'));
+      const names = node('ul');
+      for (const ds of records) names.append(node('li',ds.name));
+      details.append(names);
+      const notice = node('p',null,'dm-notice');
+      notice.hidden = true;
+      notice.setAttribute('role','alert');
+      const cancel = button('Cancel',() => dialog.close());
+      cancel.autofocus = true;
+      const confirm = button(deleting ? 'Delete permanently' : 'Confirm archive',() => {
+        const ids = records.map(ds => ds.id);
+        try {
+          if (deleting) store.deleteDatasets(ids);
+          else store.archiveDatasets(ids);
+        } catch (error) {
+          notice.textContent = error.message || 'The change could not be saved.';
+          notice.hidden = false;
+          return;
+        }
+        dialog.close();
+        config.refresh();
+        status(quantity + (deleting ? ' permanently deleted.' : ' archived. Restore from Archive.'));
+        requestAnimationFrame(() => document.querySelector('.dm-catalog-filters input[type="search"]')?.focus());
+      },true);
+      dialog.append(title,description);
+      if (!deleting) {
+        const downstream = datasets.filter(ds => !ds.archived && !selectedIds.has(ds.id) && selectedIds.has(ds.upstreamId));
+        if (downstream.length) dialog.append(node('p','Restore the upstream data before refreshing ' + downstream.map(ds => ds.name).join(', ') + '.'));
+      }
+      dialog.append(details,notice,group('dm-actions',cancel,confirm));
+      const closeOnNavigation = () => dialog.close();
+      window.addEventListener('hashchange',closeOnNavigation);
+      dialog.addEventListener('close',() => {
+        window.removeEventListener('hashchange',closeOnNavigation);
+        dialog.remove();
+        if (trigger.isConnected && trigger.getClientRects().length) trigger.focus();
+      },{once:true});
+      document.body.append(dialog);
+      dialog.showModal();
+    }
+    const archive = button('Archive selected',() => confirmBatch('archive',archive));
+    const remove = button('Delete selected',() => confirmBatch('delete',remove));
+    batch.append(selectedCount,move,archive,remove,button('Clear selection',() => {selectedIds.clear();draw();}));
     content.append(controls,batch,list,paging);
 
     function draw() {

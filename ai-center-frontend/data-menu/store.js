@@ -230,6 +230,41 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       return selection.length;
     });
   }
+  function selectedDatasets(data,ids) {
+    if (!Array.isArray(ids) || !ids.length) throw new Error('Select at least one dataset.');
+    return Array.from(new Set(ids),id => active(data,id));
+  }
+  function archiveDatasets(ids) {
+    return commit(data => {
+      const records = selectedDatasets(data,ids);
+      const stamp = now();
+      for (const ds of records) {
+        Object.assign(ds,{archived:true,archivedAt:stamp,snapshotDocs:[],buildSignature:null,indexedAt:null,
+          indexStatus:ds.dataType === 'table' ? 'Not applicable' : 'Not built',
+          schedule:{...ds.schedule,enabled:false,nextAt:null}});
+      }
+      return records.length;
+    });
+  }
+  function deleteDatasets(ids) {
+    return commit(data => {
+      const records = selectedDatasets(data,ids);
+      const selected = new Map(records.map(ds => [ds.id,ds]));
+      const dependents = data.datasets.filter(ds => !selected.has(ds.id) && selected.has(ds.upstreamId));
+      if (dependents.length) {
+        const names = dependents.map(ds => ds.name + (ds.archived ? ' (archived)' : ''));
+        const restore = dependents.some(ds => ds.archived) ? ' Restore archived dependents before selecting them.' : '';
+        throw new Error('Select the dependent datasets as well: ' + names.join(', ') + '.' + restore);
+      }
+      // Keep historical runs readable while removing their link to a runnable dataset.
+      for (const job of data.jobs) {
+        const ds = selected.get(job.datasetId);
+        if (ds) Object.assign(job,{deletedDatasetId:ds.id,deletedDatasetName:ds.name,datasetId:null});
+      }
+      data.datasets = data.datasets.filter(ds => !selected.has(ds.id));
+      return records.length;
+    });
+  }
   function log(data,fields) {
     const sequence = data.jobs.reduce((last,job) => /^J-\d+$/.test(job.id) ? Math.max(last,Number(job.id.slice(2))) : last,1000) + 1;
     const job = {id:'J-' + sequence,createdAt:now(),status:'Succeeded',datasetId:null,sourceId:null,retryOf:null,...fields};
@@ -398,6 +433,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     retry(id) {
       return submitJob(data => {
         const job = existing(data.jobs,id,'job');
+        if (job.deletedDatasetId) throw new Error('This dataset was permanently deleted. Its job cannot be retried.');
         if (job.status !== 'Failed') throw new Error('Only failed runs can be retried.');
         return {datasetId:job.datasetId,sourceId:job.sourceId,type:job.type,extra:{retryOf:id}};
       });
@@ -422,14 +458,9 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         return true;
       });
     },
-    archive(id) {
-      return commit(data => {
-        const ds = active(data,id);
-        Object.assign(ds,{archived:true,archivedAt:now(),snapshotDocs:[],buildSignature:null,indexedAt:null,indexStatus:'Not built'});
-        ds.schedule.enabled = false;
-        ds.schedule.nextAt = null;
-      });
-    },
+    archiveDatasets,
+    deleteDatasets,
+    archive:id => archiveDatasets([id]),
     restore(id) {
       return commit(data => {
         const ds = existing(data.datasets,id,'dataset');

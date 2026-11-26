@@ -243,7 +243,7 @@
       if (!rail) view.append(folderRail);
       folderRail.hidden = false;
       window.DatasetCatalog.render(browser,{folders,datasets,sources,layers,locations,store,tools,rail:folderRail,
-        selected:selectedFolder,onSelect:changeFolder,afterMutation:changeFolder,onOpen:open,
+        selected:selectedFolder,onSelect:changeFolder,afterMutation:changeFolder,refresh:ctx.refresh,onOpen:open,
         selection:catalogSelection,status,esc:ctx.esc},{node,field,select,button,iconButton,group,table,statusBadge});
       view.append(editor,layerEditor,browser);
     }

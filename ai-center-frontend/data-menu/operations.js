@@ -30,7 +30,9 @@
     const active = datasets.filter(dataset => !dataset.archived);
     const idOf = (rows, id) => rows.find(row => row.id === id);
     const sourceName = id => idOf(ctx.sources, id)?.name || id || '—';
-    const assetName = job => idOf(datasets, job.datasetId)?.name || sourceName(job.sourceId);
+    const jobDataset = job => job.deletedDatasetId ? job.deletedDatasetName + ' (deleted)' : idOf(datasets,job.datasetId)?.name;
+    const assetName = job => jobDataset(job) || sourceName(job.sourceId);
+    const canRetry = job => job.status === 'Failed' && !job.deletedDatasetId && (!job.datasetId || active.some(ds => ds.id === job.datasetId));
     const term = text => String(text || '').trim().toLowerCase();
     const flags = (action, id) => `data-op="${esc(action)}" data-id="${esc(id)}"`;
     const button = (label, action, id = '', cls = 'dm-btn') =>
@@ -68,21 +70,21 @@
           <div><p class="dm-kicker">Job details</p><h2 tabindex="-1" data-focus-heading>${esc(job.id)}</h2></div>
           ${badge(job.status)}</div><dl class="dm-kv">
           <dt>Operation</dt><dd>${esc(jobLabels[job.type] || job.type)}</dd>
-          <dt>Dataset</dt><dd>${esc(subject?.name || '—')}</dd>
+          <dt>Dataset</dt><dd>${esc(jobDataset(job) || '—')}</dd>
           <dt>Source</dt><dd>${esc(sourceName(job.sourceId || subject?.sourceId))}</dd>
           <dt>Started</dt><dd>${esc(displayTime(job.createdAt))}</dd>
           <dt>Trigger</dt><dd>${job.retryOf ? 'Retry' : esc(job.trigger || 'On demand')}</dd>
           ${job.retryOf ? `<dt>Retry of</dt><dd>${esc(job.retryOf)}</dd>` : ''}
           ${latest ? `<dt>Latest retry</dt><dd>${esc(latest.id)} · ${esc(latest.status)}</dd>` : ''}
           <dt>Result</dt><dd>${esc(job.detail || 'No detail recorded.')}</dd></dl>
-          <div class="dm-actions">${job.status === 'Failed' ? button('Retry job', 'retry', job.id, 'dm-btn dm-primary') : ''}
+          <div class="dm-actions">${canRetry(job) ? button('Retry job', 'retry', job.id, 'dm-btn dm-primary') : ''}
           ${button('Back to job history', 'close-job', job.id)}</div></section>`;
       }
       const jobs = [...data.jobs].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
       const rows = jobs.map(job => `<tr data-row data-match="${esc([job.id, assetName(job), sourceName(job.sourceId), jobLabels[job.type] || job.type].join(' '))}" data-status="${esc(job.status)}" data-type="${esc(job.type)}">
         <td>${button(job.id, 'inspect', job.id, 'dm-link')}</td><td>${esc(jobLabels[job.type] || job.type)}</td>
         <td>${esc(assetName(job))}</td><td>${badge(job.status)}</td><td>${esc(displayTime(job.createdAt))}</td>
-        <td>${job.status === 'Failed' ? button('Retry', 'retry', job.id) : button('Inspect', 'inspect', job.id)}</td></tr>`);
+        <td>${canRetry(job) ? button('Retry', 'retry', job.id) : button('Inspect', 'inspect', job.id)}</td></tr>`);
       return `<section class="dm-panel">
         <div class="dm-toolbar">${search('jobs', 'Job ID or asset')}
           ${filter('jobStatus', 'Status', [['', 'All statuses'], ...jobStatuses.map(s => [s, s])])}
