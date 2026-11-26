@@ -64,7 +64,7 @@
       const own = graph.get(datasetKey(ds.id));
       const input = ds.upstreamId ? datasetKey(ds.upstreamId) : assetKey(ds.sourceId, ds.asset);
       link(graph.get(input), own);
-      if (ds.archived) continue;
+      if (ds.archived || ds.dataType === 'table') continue;
       const built = Boolean(ds.indexedAt || ds.buildSignature);
       const index = add(indexKey(ds.id), {kind:'index', ds, built, title:ds.name,
         subtitle:built ? ds.indexStatus || 'Ready' : 'Not built'});
@@ -139,7 +139,8 @@
     viewport.setAttribute('role','region');
     viewport.setAttribute('aria-label','Scrollable lineage diagram');
     const legend = el('div',null,'ln-legend');
-    legend.append(el('span','Data dependency','ln-solid-key'),el('span','Index not built','ln-dashed-key'));
+    const pendingIndex = el('span','Index not built','ln-dashed-key');
+    legend.append(el('span','Data dependency','ln-solid-key'),pendingIndex);
     const inspector = el('section',null,'ln-inspector');
     inspector.setAttribute('aria-label','Selected lineage node');
     const details = el('details',null,'ln-relations');
@@ -166,7 +167,8 @@
         prop('Layer',n.layerName);
         prop('Storage location',destinations.get(n.ds.storage) || n.ds.storage || 'Unassigned');
         prop('Upstream',n.parent ? display(n.parent) : 'Input unavailable');
-        prop('Retrieval index',n.ds.archived ? 'Withdrawn · dataset archived' : n.ds.indexStatus || 'Not built');
+        if (n.ds.dataType === 'table') prop('Retrieval',n.ds.archived ? 'Unavailable in archive' : 'Structured lookup');
+        else prop('Retrieval index',n.ds.archived ? 'Withdrawn · dataset archived' : n.ds.indexStatus || 'Not built');
       } else {
         prop('Input dataset',n.ds.name);
         prop('Index status',n.subtitle);
@@ -187,6 +189,7 @@
 
     function draw() {
       visible = scopeGraph(focus,archived);
+      pendingIndex.hidden = !Array.from(visible).some(n => n.kind === 'index' && !n.built);
       controls = new Map(); edges = [];
       if (!visible.size) {
         viewport.replaceChildren(el('p','No registered assets or datasets to trace.','ln-empty'));

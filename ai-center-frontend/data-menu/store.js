@@ -23,6 +23,31 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     const source = sourceFor(sourceId);
     return source && (source.assets || [source]).find(item => item.object === asset);
   }
+  function retrievalType(ds) {
+    if (ds.upstreamId) return 'table';
+    const source = sourceFor(ds.sourceId);
+    const asset = sourceAsset(ds.sourceId, ds.asset);
+    if (['table','document'].includes(asset?.dataType)) return asset.dataType;
+    if (source?.kind === 'database') return 'table';
+    const fields = fieldsForRecord(ds);
+    if (source?.kind === 'folder' && fields.includes('file_name') &&
+        !fields.some(field => ['body','content','text','excerpt','sample_text'].includes(field))) return 'table';
+    const filename = String(ds.asset).split(' · ')[0].toLowerCase();
+    if (/\.(csv|tsv|xlsx?|jsonl?|parquet)$/.test(filename)) return 'table';
+    if (/\.(pdf|html?|txt|md|docx?)$/.test(filename)) return 'document';
+    if (/pdf|html|plain text|markdown|word/i.test(source?.format || '')) return 'document';
+    if (/csv|tsv|json|excel|sql|parquet/i.test(source?.format || '')) return 'table';
+    return fields.some(field => ['excerpt','body','sample_text','page_text','content'].includes(field)) ? 'document' : 'table';
+  }
+  function initializeRetrieval(ds) {
+    ds.dataType = retrievalType(ds);
+    if (ds.dataType === 'table') {
+      const fields = fieldsForRecord(ds);
+      ds.lookup = {filterFields:[...fields],returnFields:[...fields]};
+      Object.assign(ds,{snapshotDocs:[],buildSignature:null,indexedAt:null,indexStatus:'Not applicable'});
+      if (ds.schedule.type === 'rebuild') Object.assign(ds.schedule,{type:'refresh',enabled:false,nextAt:null});
+    }
+  }
   function documentFromValues(id, locator, values) {
     const fields = Object.keys(values);
     const titleField = fields.find(field => titleFields.includes(field));
@@ -45,9 +70,12 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     return JSON.stringify([buildFields.map(k => ds.config[k]), ds.docs.filter(d => d.included).map(d => [d.id,d.title,d.text,d.locator])]);
   }
   function updateIndexStatus(ds) {
+    if (ds.dataType === 'table') {ds.indexStatus = 'Not applicable';return;}
     ds.indexStatus = !ds.buildSignature ? 'Not built' : signature(ds) === ds.buildSignature ? 'Ready' : 'Rebuild required';
   }
   function build(ds, stamp) {
+    if (ds.dataType === 'table') throw new Error('Structured lookups read materialized rows. Refresh the table to update its data.');
+    if (!ds.docs.length) throw new Error('Ingest documents before building an index.');
     ds.snapshotDocs = ds.docs.filter(d => d.included).map(d => ({...d}));
     ds.buildSignature = signature(ds);
     ds.indexedAt = stamp;
@@ -58,6 +86,43 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     const fields = new Set();
     for (const doc of ds.docs) for (const field of Object.keys(doc.values || {})) fields.add(field);
     return fields.size ? [...fields] : [...(sourceAsset(ds.sourceId, ds.asset)?.fields || [])];
+  }
+  const blank = value => value == null || typeof value === 'string' && !value.trim();
+  const numberPattern = /^[+-]?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
+  function isDate(value) {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const time = Date.parse(value + 'T00:00:00Z');
+    return Number.isFinite(time) && new Date(time).toISOString().slice(0,10) === value;
+  }
+  function fieldType(ds, field) {
+    let type;
+    for (const doc of ds.docs) {
+      const value = doc.values?.[field];
+      if (blank(value)) continue;
+      const normalized = typeof value === 'string' ? value.trim() : value;
+      const current = isDate(normalized) ? 'Date' : numberPattern.test(String(normalized)) && Number.isFinite(Number(normalized)) ? 'Number' : 'Text';
+      if (current === 'Text' || type && type !== current) return 'Text';
+      type = current;
+    }
+    return type || 'Text';
+  }
+  function rowCondition(ds, condition, allowed) {
+    const {field,op,value} = condition || {};
+    if (!allowed.has(field)) throw new Error('Choose a configured filter field.');
+    const get = doc => Object.hasOwn(doc.values || {},field) ? doc.values[field] : null;
+    if (op === 'empty') return doc => blank(get(doc));
+    if (op === 'not_empty') return doc => !blank(get(doc));
+    if (blank(value)) throw new Error('Enter a value for ' + field + '.');
+    const string = v => (typeof v === 'object' ? JSON.stringify(v) : String(v)).trim().toLowerCase();
+    if (op === 'contains') return doc => !blank(get(doc)) && string(get(doc)).includes(string(value));
+    const type = fieldType(ds,field);
+    if (type === 'Number' && (!numberPattern.test(String(value).trim()) || !Number.isFinite(Number(value)))) throw new Error('Enter a number for ' + field + '.');
+    if (type === 'Date' && !isDate(String(value).trim())) throw new Error('Enter a valid YYYY-MM-DD date for ' + field + '.');
+    const comparable = type === 'Number' ? Number : string;
+    const target = comparable(value);
+    const comparisons = {eq:v=>v===target,ne:v=>v!==target,gt:v=>v>target,gte:v=>v>=target,lt:v=>v<target,lte:v=>v<=target};
+    if (!Object.hasOwn(comparisons,op) || type === 'Text' && !['eq','ne'].includes(op)) throw new Error('Choose a supported operator for ' + field + '.');
+    return doc => !blank(get(doc)) && comparisons[op](comparable(get(doc)));
   }
   function materialize(upstream, keyField) {
     if (!upstream || upstream.archived) throw new Error('Restore the upstream raw dataset before refreshing this detail dataset.');
@@ -88,7 +153,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     const detail = datasetRecord('reign-detail','Reign detail',upstream.sourceId,upstream.asset,upstream.storage);
     Object.assign(detail,{layer:'DWD',upstreamId:upstream.id,grain:'One reign per ruler and country',subjectId:upstream.subjectId});
     detail.docs = materialize(upstream, '');
-    build(detail,now());
+    initializeRetrieval(detail);
     datasets.push(detail);
   }
   function initialFolders(datasets) {
@@ -110,23 +175,25 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     const missions = datasetRecord('missions','Mission reference','guides','mission-notes.html','library');
     const old = datasetRecord('early-names','Country names · prior edition','names','country_aliases.csv','warehouse');
     const datasets = [reigns,missions,old];
-    for (const ds of datasets) ds.docs = readDocuments(sourceFor(ds.sourceId),ds.asset);
+    for (const ds of datasets) {
+      ds.docs = readDocuments(sourceFor(ds.sourceId),ds.asset);
+      initializeRetrieval(ds);
+    }
     reigns.subjectId = 'monarchs';
     reigns.schedule = window.DataSchedule.save(reigns.schedule,{type:'refresh',frequency:'Daily',time:'09:00',zone:'UTC',enabled:true},stamp);
     missions.subjectId = 'missions-and-events';
     old.subjectId = 'monarchs';
     old.archived = true;
     old.archivedAt = daysFrom(stamp,-8);
-    build(reigns,daysFrom(stamp,-1));
     const jobs = [
       {id:'J-1003',type:'refresh',datasetId:missions.id,sourceId:'guides',status:'Failed',createdAt:daysFrom(stamp,-1),detail:'The sample source timed out. The previous documents were retained. Retry to run the refresh again.'},
-      {id:'J-1002',type:'rebuild',datasetId:reigns.id,sourceId:'register',status:'Succeeded',createdAt:reigns.indexedAt,detail:'Published two reign records to the searchable index.'},
+      {id:'J-1002',type:'refresh',datasetId:reigns.id,sourceId:'register',status:'Succeeded',createdAt:daysFrom(stamp,-1),detail:'Refreshed two structured reign records.'},
       {id:'J-1001',type:'sync',sourceId:'register',status:'Succeeded',createdAt:daysFrom(stamp,-2),detail:'Discovered public.reigns and synchronized its source inventory.'}
     ];
     addSampleDetail(datasets);
     return {datasets,jobs,storageLocations,folders:initialFolders(datasets),layers:defaultLayers.map(layer => ({...layer})),domains:[{id:'governance',name:'Governance & succession'},{id:'gameplay',name:'Game systems'}],
       subjects:[{id:'monarchs',domainId:'governance',name:'Monarchs and reigns'},{id:'missions-and-events',domainId:'gameplay',name:'Missions and events'}],
-      sourceSubjects:{register:'monarchs',guides:'missions-and-events'},sourceOverrides:{},version:3};
+      sourceSubjects:{register:'monarchs',guides:'missions-and-events'},sourceOverrides:{},version:4};
   }
   function legacyValues(doc, knownFields) {
     // The old text format concatenated the field name and value in source order.
@@ -171,11 +238,16 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         const raw = localStorage.getItem(key);
         if (raw) {
           const data = JSON.parse(raw);
-          if ([1,2,3].includes(data.version) && Array.isArray(data.datasets) && Array.isArray(data.jobs)) {
+          if ([1,2,3,4].includes(data.version) && Array.isArray(data.datasets) && Array.isArray(data.jobs)) {
             if (data.version === 1) migrateWarehouse(data);
             if (data.version === 2) {
               data.folders = initialFolders(data.datasets);
               data.version = 3;
+              upgraded = true;
+            }
+            if (data.version === 3) {
+              data.datasets.forEach(initializeRetrieval);
+              data.version = 4;
               upgraded = true;
             }
             memory = data;
@@ -280,7 +352,6 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     const ds = active(data,id);
     let detail;
     if (type === 'rebuild') {
-      if (!ds.docs.length) throw new Error('Ingest documents before building an index.');
       build(ds,now());
       detail = 'Published ' + ds.snapshotDocs.length + ' included document(s) to the searchable index.';
     } else if (['ingest','refresh'].includes(type)) {
@@ -291,7 +362,8 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       ds.docs = docs.map(d => ({...d,included:selection.get(d.id) ?? true}));
       updateIndexStatus(ds);
       detail = isDetail ? 'Materialized ' + docs.length + ' detail row(s) from ' + upstream.name + '.' :
-        (type === 'ingest' ? 'Ingested ' : 'Refreshed ') + ds.docs.length + ' document(s) from ' + ds.asset + '.';
+        (type === 'ingest' ? 'Ingested ' : 'Refreshed ') + ds.docs.length +
+          (ds.dataType === 'table' ? ' row(s) from ' : ' document(s) from ') + ds.asset + '.';
     } else throw new Error('Unknown dataset job.');
     return log(data,{type,datasetId:id,sourceId:ds.sourceId,detail,...extra});
   }
@@ -360,6 +432,43 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     moveDatasets,
     moveDataset:(id,folderId) => moveDatasets([id],folderId),
     fieldsFor(id) { return fieldsForRecord(existing(read().datasets,id,'dataset')); },
+    fieldTypesFor(id) {
+      const ds = existing(read().datasets,id,'dataset');
+      return Object.fromEntries(fieldsForRecord(ds).map(field => [field,fieldType(ds,field)]));
+    },
+    setLookupFields(id,{filterFields,returnFields}) {
+      return commit(data => {
+        const ds = active(data,id);
+        if (ds.dataType !== 'table') throw new Error('Field selection is available for structured tables.');
+        const fields = new Set(fieldsForRecord(ds));
+        for (const list of [filterFields,returnFields]) {
+          if (!Array.isArray(list) || list.some(field => !fields.has(field))) throw new Error('Choose fields from this table.');
+        }
+        if (!returnFields.length) throw new Error('Select at least one return field.');
+        ds.lookup = {filterFields:[...new Set(filterFields)],returnFields:[...new Set(returnFields)]};
+      });
+    },
+    queryRows(id,conditions=[],limit=20) {
+      const ds = existing(read().datasets,id,'dataset');
+      if (ds.archived) throw new Error('Restore this table before running a query.');
+      if (ds.dataType !== 'table') throw new Error('Structured conditions apply only to tables.');
+      if (!Array.isArray(conditions)) throw new Error('Supply a list of query conditions.');
+      if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('Use a row limit between 1 and 100.');
+      const available = new Set(fieldsForRecord(ds));
+      const fields = ds.lookup.returnFields.filter(field => available.has(field));
+      if (!fields.length) throw new Error('Select at least one available return field.');
+      const allowed = new Set(ds.lookup.filterFields.filter(field => available.has(field)));
+      const predicates = conditions.map(condition => rowCondition(ds,condition,allowed));
+      const rows = [];
+      let total = 0;
+      for (const doc of ds.docs) {
+        if (!predicates.every(matches => matches(doc))) continue;
+        total++;
+        if (rows.length < limit) rows.push({locator:doc.locator,values:Object.fromEntries(fields.map(field =>
+          [field,Object.hasOwn(doc.values || {},field) ? doc.values[field] : null]))});
+      }
+      return {fields,rows,total};
+    },
     saveLayer({code,name,kind}) {
       return commit(data => {
         code = named(code,'layer code').toUpperCase();
@@ -393,6 +502,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         ds.layer = layer;
         ds.folderId = folderId;
         if (detail) Object.assign(ds,{upstreamId,grain,keyField});
+        initializeRetrieval(ds);
         data.datasets.unshift(ds);
         return ds.id;
       });
@@ -409,6 +519,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     setDocuments(id,selectedIds) {
       return commit(data => {
         const ds = active(data,id);
+        if (ds.dataType === 'table') throw new Error('The table lookup uses all materialized rows.');
         const selected = new Set(selectedIds);
         ds.docs.forEach(d => {d.included = selected.has(d.id);});
         updateIndexStatus(ds);
@@ -417,6 +528,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     setConfig(id,patch) {
       return commit(data => {
         const ds = active(data,id);
+        if (ds.dataType === 'table') throw new Error('Configure filter and return fields for a structured table.');
         const config = {...ds.config};
         Object.keys(defaults).forEach(k => {if (Object.hasOwn(patch,k)) config[k] = patch[k];});
         for (const k of ['chunkSize','chunkOverlap','topK']) config[k] = Number(config[k]);
@@ -441,6 +553,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     setSchedule(id,options) {
       return commit(data => {
         const ds = active(data,id);
+        if (ds.dataType === 'table' && options.type === 'rebuild') throw new Error('Schedule a table refresh or ingestion.');
         ds.schedule = window.DataSchedule.save(ds.schedule,options,now());
       });
     },
@@ -470,7 +583,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     },
     search(id,query) {
       const ds = read().datasets.find(item => item.id === id);
-      if (!ds || ds.archived || !ds.buildSignature) return [];
+      if (!ds || ds.dataType === 'table' || ds.archived || !ds.buildSignature) return [];
       const terms = String(query).toLowerCase().trim().split(/\s+/).filter(Boolean);
       return ds.snapshotDocs.map(doc => {
         const text = (doc.title + ' ' + doc.text).toLowerCase();

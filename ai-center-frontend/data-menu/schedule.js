@@ -64,7 +64,7 @@
       </section>
       ${dataset.archived ? '<p class="dm-notice">Restore this dataset to enable a schedule.</p>' : `<section class="dm-panel"><h2>${active ? 'Edit schedule' : 'Set up a schedule'}</h2>
         <form><div class="dm-grid">
-          <label class="dm-field">Operation<select name="type" aria-label="Operation">${Object.entries(operations).map(([k,v])=>option(k,v,p.type)).join('')}</select></label>
+          <label class="dm-field">Operation<select name="type" aria-label="Operation">${Object.entries(operations).filter(([key]) => key !== 'rebuild' || dataset.dataType === 'document').map(([k,v])=>option(k,v,p.type)).join('')}</select></label>
           <label class="dm-field">Frequency<select name="frequency" aria-label="Frequency">${frequencies.map(v=>option(v,v,p.frequency)).join('')}</select></label>
           <label class="dm-field" data-day>Day of week<select name="weekday" aria-label="Day of week">${week.map((v,i)=>option(i,v,p.weekday)).join('')}</select></label>
           <label class="dm-field" data-clock>Run at<input type="time" name="time" required value="${esc(p.time)}"></label>

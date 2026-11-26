@@ -14,7 +14,7 @@
         <div class="dm-actions"><button type="button" class="dm-btn" data-cmd="test">Test connection</button>
         <button type="button" class="dm-btn dm-primary" data-cmd="sync">Sync now</button></div></div>
         <dl class="dm-kv"><dt>Last test</dt><dd>${esc(latest('test'))}</dd><dt>Last sync</dt><dd>${esc(latest('sync'))}</dd></dl>
-        <p class="dm-muted">Sync updates the source inventory. Each dataset controls when it imports documents.</p>
+        <p class="dm-muted">Sync updates the source inventory. Each dataset controls when it imports records or documents.</p>
         <output class="dm-source-feedback" aria-live="polite"></output>
       </section>
       <section class="dm-panel"><h2>Linked datasets</h2>${linked.length ?

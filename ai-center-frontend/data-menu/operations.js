@@ -202,7 +202,7 @@
           <td>${esc(storage || '—')}</td><td>${esc(displayTime(dataset.archivedAt))}</td>
           <td>${button('Restore', 'restore', dataset.id)}</td></tr>`;
       });
-      return `<header class="dm-head"><h1>Archive</h1></header><p class="dm-muted">Archived datasets retain their documents and settings. Archiving stops scheduled runs and removes the index from retrieval. After restoring a dataset, rebuild its index and enable its schedule when ready.</p><section class="dm-panel">
+      return `<header class="dm-head"><h1>Archive</h1></header><p class="dm-muted">Archiving retains data and settings, pauses jobs and disables retrieval. Restore a table to query its rows again. For documents, rebuild the index after restoring. Schedules can be enabled separately.</p><section class="dm-panel">
         <div class="dm-toolbar">${search('archive', 'Dataset, source or storage')}</div>
         ${grid(['Dataset', 'Source', 'Storage', 'Archived', 'Actions'], rows, 'archive', rows.length ? 'No archived datasets match your search.' : 'No archived datasets.')}</section>`;
     }
@@ -300,8 +300,9 @@
           case 'restore': {
             store.restore(id);
             const restored = idOf(store.snapshot().datasets, id);
-            committed(restored.name + ' restored to Datasets. Index status is ' + restored.indexStatus +
-              '. Schedule is ' + (restored.schedule?.enabled ? restored.schedule.frequency : 'Manual') + '.');
+            committed(restored.name + ' restored to Datasets. ' +
+              (restored.dataType === 'table' ? 'Structured lookup is available.' : 'Rebuild the index to resume document search.') +
+              ' Schedule is ' + (restored.schedule?.enabled ? restored.schedule.frequency : 'Manual') + '.');
             return;
           }
           case 'domain': state.editor = {kind: 'domain', id}; break;

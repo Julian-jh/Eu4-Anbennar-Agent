@@ -170,9 +170,10 @@
         check.onchange = () => {if (check.checked) selectedIds.add(d.id); else selectedIds.delete(d.id);updateChecks();};
         const identity = group('dm-catalog-identity',button(d.name,() => onOpen(d.id)),node('small',folderPath(d),'dm-catalog-path'));
         const input = group('dm-source-identity',node('span',inputName(d) || 'Unavailable'),node('small',d.upstreamId ? d.grain : d.asset,'dm-catalog-path'));
-        return [check,identity,node('span',d.layer,'dm-badge'),input,storageNames.get(d.storage) || d.storage,d.docs.length,statusBadge(d.indexStatus)];
+        const retrieval = d.dataType === 'table' ? 'Structured lookup' : d.indexStatus;
+        return [check,identity,node('span',d.layer,'dm-badge'),input,storageNames.get(d.storage) || d.storage,d.docs.length,statusBadge(retrieval)];
       });
-      const sheet = table(['','Dataset','Layer','Input','Storage','Rows','Index'],records);
+      const sheet = table(['','Dataset','Layer','Input','Storage','Rows','Retrieval'],records);
       sheet.querySelector('th').append(pageCheck);
       list.replaceChildren(sheet);
       updateChecks();

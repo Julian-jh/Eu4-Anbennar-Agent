@@ -11,7 +11,7 @@ Data                                 top navigation
 ├─ Datasets                           sidebar
 │  ├─ Folder rail → Create dataset | Manage layers | Folder tree
 │  ├─ Catalog → Current folder and dataset list
-│  └─ Dataset → Overview | Documents | Retrieval | Schedule | Lineage
+│  └─ Dataset → Overview | Documents or Fields | Retrieval | Schedule | Lineage
 ├─ Jobs                               sidebar
 │  └─ Job history | Dataset schedules
 ├─ Taxonomy                           sidebar
@@ -36,11 +36,11 @@ The first three pages have tabs. Taxonomy presents the hierarchy and its assignm
 
 1. Open **Sources → Anbennar mission notes → Connection**. Test the connection, sync the inventory and review its linked dataset names. Select **Datasets** from the sidebar and open **Mission reference** to see the source asset and storage destination. To try a different pairing, choose the **Create dataset** icon in the folder rail.
 2. On **Overview**, refresh the existing dataset or ingest a newly created raw dataset. Select the **Schedule** tab to choose an operation and recurrence. **Jobs → Dataset schedules** lists upcoming runs and offers **Schedule a job**. For a failure example, filter **Job history** by **Failed** and retry the sample mission refresh. The result identifies the new attempt. Open that attempt from the history list.
-3. On **Documents**, choose which records belong in the index. In **Retrieval**, configure parsing, chunk size and overlap, embeddings and index type. Build the index and search for `mission`. Change a document selection after the first build to see **Rebuild required**. Queries continue to use the previous published selection until the rebuild. Query mode and result limit are runtime settings.
+3. For **Mission reference**, choose indexed documents under **Documents**. In **Retrieval**, configure parsing, chunking, embeddings and index type, then build and try a search. Changing the document selection makes the index **Rebuild required**. For **Reign detail**, use **Retrieval** to choose filter and return fields. Try `country_tag = FRA`, `start_date ≤ 1444-11-11`, and `end_date > 1444-11-11` to retrieve Charles VII and the source row. **Fields** shows the current table configuration.
 4. Open **Taxonomy**. **Governance & succession** is the broad domain. **Monarchs and reigns** is a subject within it. The **Reign register** source and **Monarchs and reigns** dataset are assigned to that subject. A corpus identifies which world supplied the material. A subject identifies what it describes.
-5. On a dataset's **Overview**, choose **Archive dataset**. Its documents, source link, storage choice, configuration, classifications and run history stay available. Its schedule stops, its published index is removed and its documents disappear from retrieval. **Archive → Restore** returns the dataset to the catalog. Rebuild the index to resume retrieval and enable the schedule separately to resume automatic runs.
+5. On a dataset's **Overview**, choose **Archive dataset**. Its data, source link, storage choice, configuration, classifications and history are retained. Its schedule stops. Archiving disables structured queries and withdraws document indexes. **Archive → Restore** makes retained table rows available for queries again. Restore and rebuild a document index to resume RAG. Re-enable schedules separately.
 
-The demo stores changes in the browser. The named storage locations represent logical destinations. Connection checks, imports and index builds operate on local sample records. The query preview matches text and honors the result limit. Model and index selections demonstrate configuration and rebuild behavior. The local scheduler checks while the page is open and runs one catch-up job on reopening when a schedule is overdue.
+The demo stores changes in the browser. The named storage locations represent logical destinations. Connection checks, imports and index builds operate on local sample records. Document searches match text in the last published index. Structured queries apply all configured conditions to current materialized rows and return the selected columns and source locator. Model and index selections demonstrate configuration and rebuild behavior. The local scheduler checks while the page is open and runs one catch-up job on reopening when a schedule is overdue.
 
 ## Warehouse records and lineage
 
@@ -52,7 +52,7 @@ Use **Archive selected** to retain the selected datasets for restoration, or **D
 
 **ODS** stores the selected source asset’s fields and row values. **DWD** reads an active raw dataset. Its definition records the grain of each detail row and can specify a field for deduplication. Materialization trims surrounding whitespace in text fields and keeps a locator for each retained input row. Documents excluded from a RAG index still participate in warehouse transformations. The catalog supports custom layers with raw or detail behavior. The demo materializes datasets locally in browser storage.
 
-Select **Reign detail** from the dataset list, then open its **Lineage** tab. The example follows **Reign register / public.reigns → Monarchs and reigns (ODS) → Reign detail (DWD) → retrieval index**. Select a node to inspect its input, storage or index state within the graph. Archiving a raw input retains its existing detail outputs, and a subsequent detail refresh records a failed job until the input is available again.
+Select **Reign detail** from the dataset list and open **Lineage**. Its path is **Reign register / public.reigns → Monarchs and reigns (ODS) → Reign detail (DWD)**. The detail table supports direct structured lookup. **Mission reference** shows a document index as a downstream node. Select a node to inspect its input, storage or retrieval state. Archiving a raw input retains its materialized outputs, and subsequent detail refreshes fail until that input is available again.
 
 For a scheduling demonstration, select **Every minute**, then save and enable the schedule. The dataset shows the upcoming run and latest scheduled job result. Use the **Jobs** submenu to inspect run details. Daily and weekly plans support a wall-clock time in UTC, Dubai or Shanghai. The scheduler processes due raw datasets before their detail datasets in the same batch. A daily or weekly job missed while the browser was closed runs once when the workspace reopens.
 

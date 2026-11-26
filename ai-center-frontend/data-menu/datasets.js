@@ -192,17 +192,20 @@
     const currentTab = Object.hasOwn(tabs,params.tab) ? params.tab : 'overview';
     const heading = node('div',null,'dm-head');
     const back = iconButton(selectedFolder ? 'Back to folder' : 'All datasets','back',() => browse(selectedFolder));
-    heading.append(group('dm-toolbar',back,node('h1',active.name),node('span',active.layer,'dm-badge'),statusBadge(active.archived ? 'Archived' : active.indexStatus)));
+    const rowCount = active.recordCount ?? active.docs.length;
+    const availability = active.dataType === 'table' ? (rowCount ? 'Materialized' : 'Empty') : active.indexStatus;
+    heading.append(group('dm-toolbar',back,node('h1',active.name),node('span',active.layer,'dm-badge'),statusBadge(active.archived ? 'Archived' : availability)));
     view.prepend(heading);
     const navigation = node('nav',null,'dm-tabs');
     navigation.setAttribute('aria-label','Dataset views');
     for (const [key,label] of Object.entries(tabs)) {
-      const tab = button(label,() => open(active.id,key));
+      const tab = button(key === 'documents' && active.dataType === 'table' ? 'Fields' : label,() => open(active.id,key));
       if (currentTab === key) tab.setAttribute('aria-current','page');
       navigation.append(tab);
     }
     view.append(navigation);
-    if (active.archived) view.append(node('p','Archived datasets are read-only and excluded from retrieval. Restoring a dataset retains its configuration and requires a new index.','dm-notice'));
+    if (active.archived) view.append(node('p',active.dataType === 'table' ? 'Archived tables are read-only. Restore this dataset to query its retained rows.' :
+      'Archived documents are read-only. Restore this dataset and rebuild its index to enable retrieval.','dm-notice'));
     if (currentTab === 'overview') drawOverview();
     if (currentTab === 'documents') drawDocuments();
     if (currentTab === 'retrieval') drawRetrieval();
@@ -333,7 +336,8 @@
         ['Folder',folder],
         ['Warehouse layer',layer ? layer.code + ' · ' + layer.name : active.layer],...inputRows,
         ['Storage',location ? location.name : active.storage],['Rows',active.docs.length],
-        ['Retrieval index',active.indexStatus],['Last indexed',active.indexedAt ? new Date(active.indexedAt).toLocaleString() : 'Not yet indexed']
+        ['Retrieval',active.dataType === 'table' ? 'Structured table lookup' : 'Document search'],
+        ...(active.dataType === 'table' ? [] : [['Retrieval index',active.indexStatus],['Last indexed',active.indexedAt ? new Date(active.indexedAt).toLocaleString() : 'Not yet indexed']])
       ]);
       const overview = panel('Dataset details',links);
       view.append(overview);
@@ -400,7 +404,8 @@
       jobs.append(node('p',nextRun,'dm-muted'));
       view.append(jobs);
       const archive = panel('Archive dataset');
-      const confirmBox = group('dm-notice',node('p','Archiving removes the index and turns off the schedule. Documents and configuration are retained. After restoration the schedule stays off. Rebuild the index before retrieval and re-enable scheduling when ready.'));
+      const confirmBox = group('dm-notice',node('p',active.dataType === 'table' ? 'Archiving pauses scheduling and table lookup. Restoring the dataset makes its retained rows queryable again. Its schedule stays off.' :
+        'Archiving removes the index and turns off the schedule. Documents and configuration are retained. After restoration the schedule stays off. Rebuild the index before retrieval and re-enable scheduling when ready.'));
       confirmBox.hidden = true;
       const start = button('Archive dataset',() => {confirmBox.hidden = false;confirm.focus();});
       const confirm = button('Confirm archive',() => execute(() => store.archive(active.id),'Dataset archived.'));
@@ -410,6 +415,12 @@
       view.append(archive);
     }
     function drawDocuments() {
+      if (active.dataType === 'table') {
+        const types = store.fieldTypesFor(active.id);
+        const rows = Object.entries(types).map(([name,type]) => [name,type,active.lookup.filterFields.includes(name) ? 'Yes' : 'No',active.lookup.returnFields.includes(name) ? 'Yes' : 'No']);
+        view.append(panel('Table fields',table(['Field','Type','Filterable','Returned'],rows)));
+        return;
+      }
       if (!active.docs.length) {
         const p = panel('Documents',node('p',isDetail(active) ? 'No detail records have been materialized.' : 'No source records have been ingested.','dm-muted'));
         view.append(p);
@@ -441,6 +452,10 @@
       view.append(section);
     }
     function drawRetrieval() {
+      if (active.dataType === 'table') {
+        window.StructuredRetrieval.render(view,{store,dataset:active,execute,status},{node,field,select,button,submit,group,table,form,panel});
+        return;
+      }
       const config = active.config;
       const parser = select(optionList(['Auto','Structured rows','Plain text','PDF','HTML'],config.parser),config.parser);
       const size = numberInput(config.chunkSize,64,8192);
