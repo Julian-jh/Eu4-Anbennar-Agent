@@ -133,8 +133,13 @@
     remove.classList.add('dm-delete');
     const taskActions = window.DatasetBatch.actions({store,status,getSelected:() => subset.filter(ds => selectedIds.has(ds.id)),
       refresh:() => {selection.afterRunIds = [...selectedIds];config.refresh();}},ui);
-    const clear = button('Clear selection',() => {selectedIds.clear();draw();});
-    batch.append(selectedCount,...taskActions,move,archive,clear,remove);
+    const clear = button('Clear selection',() => {
+      selectedIds.clear();
+      draw();
+      list.querySelector('thead input[type="checkbox"]')?.focus();
+    });
+    clear.classList.add('dm-clear-selection');
+    batch.append(selectedCount,clear,...taskActions,move,archive,remove);
     results.append(count,batch,list,paging);
     content.append(filters,results);
 

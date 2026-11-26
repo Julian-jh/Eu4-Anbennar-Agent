@@ -108,6 +108,10 @@
 [data-theme="dark"] .dm-table td .dm-btn:hover:enabled { background: transparent; }
 [data-theme="dark"] button:disabled { opacity: .6; }
 
+.dm-btn.dm-clear-selection { background: #1c563f; border-color: #194c38; color: #fff; }
+.dm-btn.dm-clear-selection:hover:enabled { background: #164531; }
+[data-theme="dark"] .dm-btn.dm-clear-selection { background: #286447; border-color: #43835f; color: #fff; }
+[data-theme="dark"] .dm-btn.dm-clear-selection:hover:enabled { background: #327551; }
 .dm-btn.dm-delete { background: #ac263a; border-color: #942033; color: #fff; }
 .dm-btn.dm-delete:hover:enabled { background: #8c1d30; }
 [data-theme="dark"] .dm-btn.dm-delete { background: #ae3045; border-color: #d66f7c; color: #fff; }
