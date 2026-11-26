@@ -1,0 +1,14 @@
+.dm-import-form { display:grid; gap:16px; }
+.dm-import-form h2 { margin:3px 0 0; }
+.dm-import-filters { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 18px; }
+.dm-import-filters select,.dm-import-filters input { width:100%; }
+.dm-import-list { min-width:0; }
+.dm-import-list td:first-child,.dm-import-list th:first-child { width:2.5rem; text-align:center; }
+.dm-import-list .dm-badge { width:fit-content; }
+.dm-import-object { display:grid; gap:3px; }
+.dm-import-object small { font-size:.79rem; }
+.dm-import-submit { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:7px; }
+@media (max-width:600px) {
+  .dm-import-filters { grid-template-columns:1fr; }
+  .dm-import-list .dm-table { min-width:415px; }
+}

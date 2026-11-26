@@ -523,6 +523,63 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         return code;
       });
     },
+    databaseImportInventory(sourceId) {
+      const source = existing(sources,sourceId,'source');
+      if (source.kind !== 'database') throw new Error('Choose a database connection.');
+      const imported = new Map(read(true).datasets.filter(ds => ds.sourceId === sourceId && !ds.upstreamId).map(ds => [ds.asset,ds]));
+      return (source.assets || [source]).map(asset => {
+        const ds = imported.get(asset.object);
+        return {object:asset.object,fields:[...asset.fields],rowCount:asset.rows.length,
+          datasetId:ds?.id || null,datasetName:ds?.name || '',archived:Boolean(ds?.archived)};
+      });
+    },
+    async importDatabaseTables({sourceId,assets,layer='ODS',storage,folderId=null}) {
+      function importBatch() {
+        return commit(data => {
+          const source = existing(sources,sourceId,'source');
+          if (source.kind !== 'database') throw new Error('Choose a database connection.');
+          if (layerFor(data,layer).kind !== 'raw') throw new Error('Choose a raw warehouse layer for database imports.');
+          existing(data.storageLocations,storage,'storage location');
+          const destination = folderReference(data,folderId);
+          if (!Array.isArray(assets) || !assets.length) throw new Error('Select at least one table to import.');
+          if (new Set(assets).size !== assets.length) throw new Error('Select each table only once.');
+          const imported = new Set(data.datasets.filter(ds => ds.sourceId === sourceId && !ds.upstreamId).map(ds => ds.asset));
+          const names = new Set(data.datasets.map(ds => ds.name.toLowerCase()));
+          // Stage new datasets and jobs together. A failure leaves both original lists intact.
+          const staged = {...data,datasets:[...data.datasets],jobs:[...data.jobs]};
+          const result = [];
+          for (const object of assets) {
+            if (imported.has(object)) throw new Error(object + ' has already been imported from this connection.');
+            if (!sourceAsset(sourceId,object)) throw new Error('This table is unavailable: ' + object + '.');
+            let name = object;
+            if (names.has(name.toLowerCase())) {
+              const qualified = source.name + ' / ' + object;
+              name = qualified;
+              for (let suffix=2;names.has(name.toLowerCase());suffix++) name = qualified + ' (' + suffix + ')';
+            }
+            names.add(name.toLowerCase());
+            const ds = datasetRecord(newId('dataset'),name,sourceId,object,storage);
+            Object.assign(ds,{layer,folderId:destination});
+            initializeRetrieval(ds);
+            staged.datasets.unshift(ds);
+            const jobId = runDataset(staged,ds.id,'ingest');
+            result.push({datasetId:ds.id,name,object,rowCount:ds.docs.length,jobId});
+          }
+          data.datasets = staged.datasets;
+          data.jobs = staged.jobs;
+          return result;
+        });
+      }
+      const locks = globalThis.navigator?.locks;
+      if (!locks) return importBatch();
+      return locks.request('ai-center-import-database-tables',{ifAvailable:true},async lock => {
+        if (!lock) throw new Error('Another database import is running. Retry after it finishes.');
+        const result = importBatch();
+        // Release after the writing task ends so other tabs can observe the storage change.
+        await new Promise(resolve => setTimeout(resolve,0));
+        return result;
+      });
+    },
     addDataset({name,layer='ODS',sourceId,asset,storage,upstreamId,grain='',keyField='',folderId=null}) {
       return commit(data => {
         name = named(name,'dataset name');

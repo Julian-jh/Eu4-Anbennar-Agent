@@ -9,7 +9,8 @@ Data                                 top navigation
 ├─ Sources                            sidebar
 │  └─ Source → Connection | Asset preview
 ├─ Datasets                           sidebar
-│  ├─ Folder rail → Create dataset | Manage layers | Folder tree
+│  ├─ Folder rail → Create dataset | Import tables | Manage layers | Folder tree
+│  ├─ Import tables → Database inventory → Warehouse destination → Import results
 │  ├─ Catalog → Current folder and dataset list
 │  └─ Dataset → Overview | Data preview | Documents or Fields | Retrieval | Schedule | Lineage
 ├─ Jobs                               sidebar
@@ -43,6 +44,8 @@ The first three pages have tabs. Taxonomy presents the hierarchy and its assignm
 The demo stores changes in the browser. The named storage locations represent logical destinations. Connection checks, imports and index builds operate on local sample records. Document searches match text in the last published index. Structured queries apply all configured conditions to current materialized rows and return the selected columns and source locator. Model and index selections demonstrate configuration and rebuild behavior. The local scheduler checks while the page is open and runs one catch-up job on reopening when a schedule is overdue.
 
 ## Warehouse records and lineage
+
+Under **Datasets**, the **Import tables** icon in the folder rail opens a separate page. Choose a database, select one or more tables across searches, and choose a raw layer, storage location and folder. Each table becomes a populated dataset with its own lineage and ingestion job. An existing or archived import is marked in the inventory. All selected tables must validate for the batch to be imported.
 
 Open **Data preview** on a dataset to inspect its stored contents. It requests up to 15 records or documents per page. Choose a page below the results to fetch it. Open a row for its complete values or a document for its text and source locator. **Download records** exports the entire active dataset. The bundled **Mission reference** sample has 18 entries, so page 2 starts at entry 16. In an existing workspace, **Overview → Refresh now** imports the updated sample.
 

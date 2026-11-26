@@ -33,6 +33,7 @@
     }
     const shapes = {
       add:'M12 4v16 M4 12h16',
+      import:'M12 3v11 M7.5 9.5 12 14l4.5-4.5 M4 15v5h16v-5',
       layers:'M12 3 2.5 8 12 13 21.5 8 12 3Z M3 12.3l9 4.7 9-4.7 M3 16.4l9 4.7 9-4.7',
       back:'M20 12H4 M11 5l-7 7 7 7'
     };
@@ -146,8 +147,9 @@
     const layerFor = dataset => layers.find(layer => layer.code === dataset.layer);
     const isDetail = dataset => layerFor(dataset)?.kind === 'detail';
     const active = datasets.find(item => item.id === params.dataset);
+    const importing = params.tab === 'import' && !params.dataset;
     const rail = document.getElementById('ac-folder-rail');
-    if (rail && active) {
+    if (rail && (active || importing)) {
       rail.replaceChildren();
       rail.hidden = true;
     }
@@ -182,6 +184,19 @@
     }
     host.replaceChildren(view);
     view.append(message);
+    if (importing) {
+      if (Object.hasOwn(params,'fromQuery')) catalogSelection.query = params.fromQuery;
+      if (Object.hasOwn(params,'fromLayer')) catalogSelection.layer = params.fromLayer;
+      if (Object.hasOwn(params,'fromPage')) catalogSelection.page = Math.max(1,Number.parseInt(params.fromPage,10) || 1);
+      const returnToCatalog = () => browse(selectedFolder);
+      const back = iconButton('Back to datasets','back',returnToCatalog);
+      window.DatasetImportView.render(view,{
+        store,databases:sources.filter(s => s.kind === 'database').map(({id,name}) => ({id,name})),
+        layers:layers.filter(l => l.kind === 'raw'),locations,folders,selectedFolder,preferredLayer:catalogSelection.layer,
+        sourceId:params.source,back,openDataset:id => open(id,'preview')
+      },{node,button,select,field,table,group});
+      return;
+    }
     if (!active) {
       view.setAttribute('aria-label','Datasets');
       if (params.dataset) status('That dataset is unavailable. Select a dataset from this catalog.',true);
@@ -232,7 +247,13 @@
         editor.querySelector('input').focus();
       });
       const manageLayers = iconButton('Manage layers','layers',() => {editor.hidden = true;layerEditor.hidden = false;layerEditor.querySelector('input').focus();});
-      const tools = group('dm-catalog-tools',createDataset,manageLayers);
+      const importTables = iconButton('Import tables','import',() => go('datasets',{
+        tab:'import',...(selectedFolder ? {folder:selectedFolder} : {}),
+        ...(catalogSelection.query ? {fromQuery:catalogSelection.query} : {}),
+        ...(catalogSelection.layer ? {fromLayer:catalogSelection.layer} : {}),
+        ...(catalogSelection.page > 1 ? {fromPage:String(catalogSelection.page)} : {})
+      }));
+      const tools = group('dm-catalog-tools',createDataset,importTables,manageLayers);
       tools.setAttribute('role','group');
       tools.setAttribute('aria-label','Dataset actions');
       const code = textInput(), name = textInput();
@@ -262,7 +283,8 @@
       const storage = select(locations.map(s => [s.id,s.name]));
       const destination = select(window.DatasetCatalog.folderChoices(folders),selectedFolder === 'unfiled' ? '' : selectedFolder || '');
       const layer = select(layers.map(l => [l.code,l.code + ' · ' + l.name]),catalogSelection.layer || layers[0]?.code);
-      const src = select(sources.map(s => [s.id,s.name])), assets = select([]);
+      const nonDatabases = sources.filter(s => s.kind !== 'database');
+      const src = select(nonDatabases.map(s => [s.id,s.name])), assets = select([]);
       const raw = datasets.filter(d => !d.archived && !isDetail(d));
       const upstream = select(raw.map(d => [d.id,d.layer + ' · ' + d.name]));
       const key = select([]);
@@ -278,11 +300,11 @@
         grain.disabled = !detail;
         const inputReady = detail ? Boolean(upstream.value) : Boolean(src.value && assets.value);
         create.disabled = !definition || !storage.value || !inputReady;
-        const missing = detail ? ' Create an active raw dataset first.' : ' Register a source with at least one asset first.';
+        const missing = detail ? ' Create an active raw dataset first.' : ' Register a file, folder or URL source first.';
         description.textContent = (descriptions[definition?.kind] || '') + (inputReady ? '' : missing);
       }
       function updateAssets() {
-        const source = sources.find(s => s.id === src.value);
+        const source = nonDatabases.find(s => s.id === src.value);
         assets.replaceChildren(...sourceAssets(source).map(a => new Option(a,a)));
         updateForm();
       }
