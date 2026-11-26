@@ -179,10 +179,8 @@
 .dm-kv { display: grid; grid-template-columns: minmax(82px,max-content) minmax(0,1fr); gap: 8px 20px; }
 .dm-kv dt { color: var(--muted); }
 .dm-kv dd { overflow-wrap: anywhere; }
-.dm-tax-domain + .dm-tax-domain { padding-top: 15px; border-top: 1px solid var(--line); }
-.dm-subjects,.dm-source-list { margin: 0; padding-left: 20px; }
-.dm-subjects li,.dm-source-list li { padding: 4px 0; }
-.dm-subjects .dm-link { margin-left: 8px; }
+.dm-source-list { margin: 0; padding-left: 20px; }
+.dm-source-list li { padding: 4px 0; }
 .dm-job-detail { display: grid; gap: 12px; }
 .dm-layout .ac-source-table { font-size: .89rem; }
 .dm-layout .ac-source-table th,.dm-layout .ac-source-table td { padding-inline: 13px; }

@@ -40,7 +40,13 @@
     const option = (value, label, current) =>
       `<option value="${esc(value)}"${value === current ? ' selected' : ''}>${esc(label)}</option>`;
     const badge = value => `<span class="dm-badge" data-status="${esc(term(value))}">${esc(value)}</span>`;
-    const notice = state.notice?.area === area ? state.notice.text : '';
+    const scope = area === 'taxonomy' ? window.TaxonomyHierarchy.resolve(data,params) : null;
+    if (scope && (state.taxScope !== scope.key || !host.querySelector('[data-tax-detail]'))) {
+      state.editor = null;
+      state.searches.assignments = state.filters.assetKind = state.filters.assetSubject = '';
+      state.taxScope = scope.key;
+    }
+    const notice = state.notice?.area === area && (!scope || state.notice.scope === scope.key) ? state.notice.text : '';
     if (area === 'jobs') {
       state.job = params.job || '';
       state.tab = !state.job && params.tab === 'schedules' ? 'schedules' : 'runs';
@@ -128,8 +134,8 @@
     function domainOptions(current) {
       return data.domains.map(domain => option(domain.id, domain.name, current)).join('');
     }
-    function subjectOptions(current) {
-      return data.domains.map(domain => {
+    function subjectOptions(current,domainId) {
+      return data.domains.filter(domain => !domainId || domain.id === domainId).map(domain => {
         const list = data.subjects.filter(subject => subject.domainId === domain.id);
         return list.length ? `<optgroup label="${esc(domain.name)}">${list.map(subject => option(subject.id, subject.name, current)).join('')}</optgroup>` : '';
       }).join('');
@@ -137,7 +143,7 @@
     function assetRows() {
       return [
         ...active.map(asset => ({...asset, kind: 'dataset'})),
-        ...sources.map(asset => ({...asset, kind: 'source', subjectId: data.sourceSubjects[asset.id] || ''}))
+        ...sources.map(asset => ({...asset, kind: 'source', subjectId: data.sourceSubjects?.[asset.id] || ''}))
       ];
     }
     function editPanel() {
@@ -166,34 +172,44 @@
     }
     function taxonomyPage() {
       const assets = assetRows();
-      const tree = data.domains.map(domain => {
-        const subjects = data.subjects.filter(subject => subject.domainId === domain.id);
-        return `<section class="dm-tax-domain"><div class="dm-head"><h3>${esc(domain.name)}</h3>
-          <div class="dm-actions">${button('Edit domain', 'domain', domain.id)}${button('Add subject', 'new-subject', domain.id)}</div></div>
-          ${subjects.length ? `<ul class="dm-subjects">${subjects.map(subject => {
-            const count = assets.filter(asset => asset.subjectId === subject.id).length;
-            return `<li><span>${esc(subject.name)} <small class="dm-muted">${count} ${count === 1 ? 'asset' : 'assets'}</small></span> ${button('Edit subject', 'subject', subject.id)}</li>`;
-          }).join('')}</ul>` : '<p class="dm-muted">No subjects yet.</p>'}</section>`;
-      }).join('');
-      const rows = assets.map(asset => {
-        const subject = idOf(data.subjects, asset.subjectId);
-        const domain = subject && idOf(data.domains, subject.domainId);
+      window.TaxonomyHierarchy.renderRail(document.getElementById('ac-folder-rail'),{
+        store,data,assets,scope,go,esc,onAddDomain() {
+          state.editor = {kind:'domain'};
+          state.notice = null;
+          repaint('[data-editor] input');
+        }
+      });
+      const isRoot = scope.kind === 'root', isDomain = scope.kind === 'domain';
+      const subjectById = new Map(data.subjects.map(row => [row.id,row]));
+      const domainById = new Map(data.domains.map(row => [row.id,row]));
+      const subjects = isDomain ? data.subjects.filter(s => s.domainId === scope.node.id) : data.subjects;
+      const visible = assets.filter(asset => isRoot || (isDomain
+        ? subjectById.get(asset.subjectId)?.domainId === scope.node.id : asset.subjectId === scope.node.id));
+      const rows = visible.map(asset => {
+        const subject = subjectById.get(asset.subjectId), domain = domainById.get(subject?.domainId);
         return `<tr data-row data-match="${esc([asset.name, domain?.name, subject?.name].join(' '))}" data-kind="${asset.kind}" data-subject="${esc(subject?.id || 'unassigned')}">
           <td>${esc(asset.name)}</td><td>${asset.kind === 'dataset' ? 'Dataset' : 'Source'}</td>
-          <td>${esc(domain?.name || '—')}</td><td>${esc(subject?.name || 'Unassigned')}</td>
+          ${isRoot ? `<td>${esc(domain?.name || '—')}</td>` : ''}${isRoot || isDomain ? `<td>${esc(subject?.name || 'Unassigned')}</td>` : ''}
           <td>${data.subjects.length ? `<button type="button" class="dm-btn" ${flags('assign', asset.id)} data-kind="${asset.kind}">Assign subject</button>` : '—'}</td></tr>`;
       });
-      return `<header class="dm-head"><h1>Taxonomy</h1>${button('Add domain', 'domain', '', 'dm-btn dm-primary')}</header>
-        ${editPanel()}<section class="dm-panel"><h2>Business domains</h2>
-        <p class="dm-muted">A domain groups a broad area of responsibility, such as Governance &amp; succession. A subject area narrows it to a topic, such as Monarchs and reigns. Assign a source or dataset to the subject to place it under its parent domain.</p>
-        ${tree || '<p class="dm-muted">Add a domain to group subjects and classify assets.</p>'}</section>
-        <section class="dm-panel"><div class="dm-head"><h2>Asset assignments</h2>
-        ${data.subjects.length && assets.length ? button('Assign asset', 'assign') : ''}</div>
+      const columns = ['Asset','Type',...(isRoot ? ['Domain'] : []),...(isRoot || isDomain ? ['Subject'] : []),'Actions'];
+      const heading = isRoot ? 'Asset assignments' : scope.node.name;
+      const context = isRoot ? 'Assign a source or dataset to one subject. Its subject determines its domain.' :
+        isDomain ? 'Domain · ' + subjects.length + (subjects.length === 1 ? ' subject' : ' subjects') :
+        'Subject · ' + (scope.domain?.name || 'Unavailable domain');
+      const controls = isRoot ? '' : isDomain ? button('Edit domain','domain',scope.node.id) + button('Add subject','new-subject',scope.node.id) :
+        button('Edit subject','subject',scope.node.id);
+      return `<header class="dm-head dm-tax-heading" data-tax-detail><div><h1 tabindex="-1" data-tax-heading>${esc(heading)}</h1>
+        <p class="dm-muted">${esc(context)}</p></div><div class="dm-actions">${controls}
+        ${subjects.length && assets.length ? button('Assign asset','assign') : ''}</div></header>
+        ${scope.unavailable ? '<p class="dm-notice" role="status">This taxonomy node is unavailable. Showing all assets.</p>' : ''}
+        ${editPanel()}<section class="dm-tax-assets" aria-label="Asset assignments">
         <div class="dm-toolbar">${search('assignments', 'Asset, domain or subject')}
           ${filter('assetKind', 'Asset type', [['', 'All assets'], ['dataset', 'Datasets'], ['source', 'Sources']])}
-          <label class="dm-field">Subject<select data-filter="assetSubject">${option('', 'All subjects', state.filters.assetSubject)}
-          ${option('unassigned', 'Unassigned', state.filters.assetSubject)}${subjectOptions(state.filters.assetSubject)}</select></label></div>
-        ${grid(['Asset', 'Type', 'Domain', 'Subject', 'Actions'], rows, 'assignments', 'No active assets match these filters.')}</section>`;
+          ${isRoot || isDomain ? `<label class="dm-field">Subject<select data-filter="assetSubject">${option('', 'All subjects', state.filters.assetSubject)}
+          ${isRoot ? option('unassigned', 'Unassigned', state.filters.assetSubject) : ''}${subjectOptions(state.filters.assetSubject,scope.domain?.id)}</select></label>` : ''}</div>
+        ${grid(columns,rows,'assignments',visible.length ? 'No assets match these filters.' : isDomain && !subjects.length ?
+          'Add a subject to classify assets in this domain.' : 'No active assets are assigned here.')}</section>`;
     }
     function archivePage() {
       const rows = datasets.filter(dataset => dataset.archived).sort((a, b) => String(b.archivedAt).localeCompare(String(a.archivedAt))).map(dataset => {
@@ -242,7 +258,7 @@
       if (focus) host.querySelector(focus)?.focus();
     }
     function committed(message) {
-      state.notice = {area, text: message};
+      state.notice = {area, text: message,scope:scope?.key};
       ctx.refresh();
     }
     function showError(err) {
@@ -265,13 +281,15 @@
         state.editor.type = control.value;
         const first = assetRows().find(asset => asset.kind === control.value);
         state.editor.assetId = first?.id || '';
-        state.editor.subjectId = first?.subjectId || '';
+        state.editor.subjectId = state.editor.destination ?? first?.subjectId ?? '';
         repaint('[name="assetType"]');
       } else if (control.name === 'assetId') {
         const asset = assetRows().find(row => row.kind === state.editor.type && row.id === control.value);
         state.editor.assetId = control.value;
-        state.editor.subjectId = asset?.subjectId || '';
+        state.editor.subjectId = state.editor.destination ?? asset?.subjectId ?? '';
         control.form.elements.subjectId.value = state.editor.subjectId;
+      } else if (control.name === 'subjectId' && state.editor?.kind === 'assignment') {
+        state.editor.destination = state.editor.subjectId = control.value;
       }
     });
     wrapper.addEventListener('click', event => {
@@ -314,11 +332,13 @@
           case 'assign': {
             const allAssets = assetRows();
             const asset = id ? allAssets.find(row => row.kind === kind && row.id === id) : allAssets[0];
+            const destination = id ? undefined : scope.kind === 'subject' ? scope.node.id :
+              scope.kind === 'domain' ? data.subjects.find(s => s.domainId === scope.node.id)?.id : undefined;
             state.editor = {kind: 'assignment', type: asset?.kind || (active.length ? 'dataset' : 'source'),
-              assetId: asset?.id, subjectId: asset?.subjectId || ''};
+              assetId: asset?.id, destination,subjectId: destination ?? asset?.subjectId ?? ''};
             break;
           }
-          case 'cancel-edit': state.editor = null; repaint(); return;
+          case 'cancel-edit': state.editor = null; repaint('[data-tax-heading]'); return;
           default: return;
         }
         state.notice = null;
@@ -340,14 +360,20 @@
         if (editor.kind === 'assignment') {
           store.assignAsset(values.get('assetType'), values.get('assetId'), values.get('subjectId'));
           state.filters.assetSubject = ''; state.filters.assetKind = ''; state.searches.assignments = '';
-          message = 'Asset assignment saved.';
+          const target = idOf(data.subjects,values.get('subjectId'));
+          const asset = assetRows().find(a => a.kind === values.get('assetType') && a.id === values.get('assetId'));
+          message = target ? asset.name + ' assigned to ' + target.name + '.' : asset.name + ' is now unassigned.';
         } else {
           const payload = {name: values.get('name').trim()};
           if (!payload.name) throw new Error('Enter a name.');
           if (editor.id) payload.id = editor.id;
-          if (editor.kind === 'domain') store.saveDomain(payload);
-          else store.saveSubject({...payload, domainId: values.get('domainId')});
+          const id = editor.kind === 'domain' ? store.saveDomain(payload) : store.saveSubject({...payload,domainId:values.get('domainId')});
           message = payload.name + ' saved.';
+          state.editor = null;
+          state.notice = {area,text:message,scope:editor.kind + ':' + id};
+          go('taxonomy',{[editor.kind]:id});
+          host.querySelector('[data-tax-heading]')?.focus();
+          return;
         }
         state.editor = null;
         committed(message);

@@ -16,6 +16,8 @@ The workspace header contains five navigation icons. On hover or keyboard focus,
 | External APIs | Connected services · Published APIs | Configure outbound service calls and manage the assistant endpoints available to client applications. |
 | Workspace settings | Workspace defaults · Roles & permissions | Set project defaults and inspect or change effective access to a resource. |
 
+The selected menu item identifies the page. Begin the work area with its controls or content and reserve visible headings for a specific asset, task, or section. In **Data → Taxonomy**, place the domain and subject hierarchy beside the Data sidebar. Selecting a domain shows assignments across its subjects.
+
 Switch peer menus through their shared navigation and peer tabs through their tab bar. Resource tabs keep the selected resource, so **Connection** and **Asset preview** show the same source. Choose a record from its collection and return to that collection to open a sibling. In a detail view, show related tables and retry attempts as names or identifiers. Inspecting a lineage node updates its metadata in place. Include area, destination and resource identity in a shareable URL, restore the selection on Back, and check the current user's permissions when opening the link.
 
 On narrow screens, wrap each navigation row independently. Keep the primary row above the secondary row, preserve reading and keyboard order, and keep labels readable. Show the active corpus (EU4, Anbennar or Real History), resource version and publication state beside the resource when they affect an action.

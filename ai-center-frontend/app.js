@@ -231,8 +231,9 @@
       delete dataParams.tab;
     }
     root.querySelector('.ac-shell').classList.toggle('dm-layout',route.area === 'data');
-    if (view !== 'datasets') {
-      const rail = $('folder-rail');
+    const rail = $('folder-rail');
+    rail.setAttribute('aria-label',view === 'taxonomy' ? 'Taxonomy navigation' : 'Dataset catalog navigation');
+    if (view !== 'datasets' && view !== 'taxonomy') {
       rail.hidden = true;
       rail.replaceChildren();
     }

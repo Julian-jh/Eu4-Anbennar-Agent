@@ -1,0 +1,38 @@
+.dm-tax-rail { color: var(--ink); }
+.dm-tax-rail header { display: flex; align-items: center; justify-content: space-between; gap: 4px; padding: 0 4px 6px; }
+.dm-tax-rail header h2 { margin: 0; font-size: .95rem; }
+.dm-tax-rail header button { font-size: 1.18rem; }
+.dm-tax-rail ul { margin: 0; padding: 0; list-style: none; }
+.dm-tax-rail li { margin: 1px 0; }
+.dm-tax-rail li > ul { padding-inline-start: 21px; }
+.dm-tax-row { display: grid; grid-template-columns: 19px minmax(0,1fr); align-items: center; }
+.dm-tax-toggle, .dm-tax-choice {
+  color: inherit; background: transparent; border: none; border-radius: 4px; text-align: start;
+}
+.dm-tax-toggle { padding: 0; min-height: 30px; color: var(--muted); text-align: center; }
+.dm-tax-choice {
+  display: grid; align-items: center; gap: 7px; grid-template-columns: 13px minmax(0,1fr) auto;
+  width: 100%; min-height: 32px; padding: 4px 6px; overflow-wrap: anywhere;
+}
+.dm-tax-choice small { color: var(--muted); font-size: .76rem; font-variant-numeric: tabular-nums; }
+.dm-tax-choice:hover, .dm-tax-toggle:hover { background: var(--surface-hover); }
+.dm-tax-choice[aria-current="page"] { background: var(--accent-soft); color: var(--forest); font-weight: 650; }
+.dm-tax-glyph { position: relative; height: 9px; width: 12px; border: 1px solid currentColor; border-radius: 2px; color: var(--muted); }
+.dm-tax-glyph[data-shape="domain"]::before {
+  content: ""; position: absolute; top: -3px; left: 0; width: 5px; height: 2px; border: 1px solid currentColor; border-bottom: 0;
+}
+.dm-tax-glyph[data-shape="subject"] { width: 7px; height: 7px; border-radius: 50%; justify-self: center; }
+.dm-tax-glyph[data-shape="root"] { border-block-width: 2px; }
+.dm-tax-heading { padding-top: 14px; }
+.dm-tax-heading h1 { margin: 0; font-size: 1.15rem; letter-spacing: normal; }
+.dm-tax-heading .dm-muted { margin: 2px 0 0; font-size: .86rem; }
+.dm-tax-assets { display: grid; grid-template-columns: minmax(0,1fr); min-width: 0; gap: 12px; }
+.dm-tax-assets .dm-table-wrap { overflow-x: auto; border: 0; border-radius: 0; background: transparent; }
+.dm-tax-assets .dm-table { background: transparent; }
+.dm-tax-assets .dm-table th { border-block: 1px solid var(--line); }
+[data-theme="dark"] .dm-tax-assets .dm-table-wrap { border: 0; background: transparent; }
+.dm-tax-assets .dm-toolbar { gap: 8px; }
+@media (pointer: coarse) {
+  .dm-tax-row { grid-template-columns: 40px minmax(0,1fr); }
+  .dm-tax-choice, .dm-tax-toggle, .dm-tax-rail .dm-icon-action { min-height: 44px; }
+}
