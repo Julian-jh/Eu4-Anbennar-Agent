@@ -34,7 +34,7 @@ In **Taxonomy**, use **Add datasets** on a domain or subject to classify existin
 | Submenu | Purpose | Managed objects | Primary actions |
 |---|---|---|---|
 | Sources | Establish where data comes from and check connectivity. | Database, file, folder and URL connections, exposed assets and sync health | Connect, test, sync and preview. |
-| Storages | Define where datasets are written. | Named storage locations and the active or archived datasets using them | Register a destination, edit its settings, inspect usage and remove an unused location. |
+| Storages | Define where datasets are written. | Named storage locations and the active or archived datasets using them | Configure a destination by type, test its settings, inspect usage and remove an unused location. |
 | Datasets | Prepare warehouse records and build searchable collections. | Raw and detail layers, upstream assets, storage, transformations, schedules and indexes | Create a layer or dataset, materialize and export rows, explore lineage, schedule jobs, build retrieval and archive. |
 | Jobs | Investigate operations across sources and datasets. | Run history, failure details, retry attempts and schedule inventory | Filter by job type or status, inspect results, retry a failure or edit a dataset schedule within Jobs. |
 | Taxonomy | Classify assets under a common business vocabulary. | Domains, reusable subjects, allowed combinations and asset assignments | Define domains and subjects in their respective tabs. Maintain links in the subject editor, classify assets inside expanded folders and inspect coverage in the read-only matrix. |
@@ -54,7 +54,9 @@ The demo stores changes in the browser. The named storage locations represent lo
 
 Under **Datasets**, the **Import tables** icon in the folder rail opens a separate page. Choose a database, select one or more tables across searches, and choose a raw layer, storage location and folder. Each table becomes a populated dataset with its own lineage and ingestion job. An existing or archived import is marked in the inventory. All selected tables must validate for the batch to be imported.
 
-Register a local folder, PostgreSQL schema or S3 bucket and optional prefix in **Storages**. The destination becomes available when creating, importing or editing datasets. The demo saves storage profiles and dataset records in the browser. Open a location to see its active and archived datasets. You can rename it while it is in use. Changing its address or deleting it requires moving those references first.
+In **Storages → Add storage**, choose a type. A local folder takes a path. S3 takes a bucket and an optional key prefix. For PostgreSQL, enter the host, port, database, schema and username in separate fields. The password field is temporary. **Test connection** validates the settings locally in this frontend demo. A successful test confirms the profile format. Server reachability, authentication and write access require a live backend.
+
+The saved destination becomes available when creating, importing or editing datasets. Open a location to see which active and archived datasets reference it. You can rename a location while it is in use. Changing its address or deleting it requires moving those references first.
 
 Open **Data preview** on a dataset to inspect its stored contents. It requests up to 15 records or documents per page. Choose a page below the results to fetch it. Open a row for its complete values or a document for its text and source locator. **Download records** exports the entire active dataset. The bundled **Mission reference** sample has 18 entries, so page 2 starts at entry 16. In an existing workspace, **Overview → Refresh now** imports the updated sample.
 

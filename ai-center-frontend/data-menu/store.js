@@ -15,38 +15,10 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     {id:'library',name:'Research library',type:'folder',locator:'workspace/library',detail:'Local workspace · documents and guides'},
     {id:'warehouse',name:'History warehouse',type:'folder',locator:'workspace/warehouse',detail:'Local workspace · structured records'}
   ];
-  const storageTypes = [
-    {id:'folder',name:'Local folder',example:'workspace/datasets'},
-    {id:'postgresql',name:'PostgreSQL schema',example:'postgresql://db.example.test:5432/history/public'},
-    {id:'s3',name:'S3 bucket / prefix',example:'s3://history-samples/datasets'}
-  ];
+  const storageProfile = window.StorageProfile;
   function named(value, label) {
     if (typeof value !== 'string' || !value.trim()) throw new Error('Enter a ' + label + '.');
     return value.trim();
-  }
-  function storageTarget(type,value) {
-    const locator = named(value,'storage locator');
-    if (!storageTypes.some(t => t.id === type)) throw new Error('Choose a supported storage type.');
-    if (/[\x00-\x1f\x7f]/.test(locator)) throw new Error('Use a locator without control characters.');
-    if (type === 'folder') {
-      if (/^[a-z][a-z0-9+.-]*:\/\//i.test(locator)) throw new Error('Enter a local folder path, such as workspace/datasets.');
-      return locator;
-    }
-    let uri;
-    try { uri = new URL(locator); } catch { /* Show the type-specific example below. */ }
-    if (uri?.username || uri?.password || uri?.search || uri?.hash) {
-      throw new Error('Use a storage locator without credentials, query parameters or a fragment.');
-    }
-    if (type === 'postgresql') {
-      if (uri?.protocol !== 'postgresql:' || !uri.hostname || !/^\/[^/]+\/[^/]+\/?$/.test(uri.pathname)) {
-        throw new Error('Enter a PostgreSQL locator with a host, database and schema.');
-      }
-      return uri.href.replace(/\/$/,'');
-    }
-    if (uri?.protocol !== 's3:' || !/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(uri.hostname) || uri.hostname.includes('..') || uri.port) {
-      throw new Error('Enter an S3 bucket locator, optionally followed by a prefix.');
-    }
-    return uri.href;
   }
   function storageUse(data,id) {
     const linked = data.datasets.filter(ds => ds.storage === id);
@@ -263,7 +235,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       {id:'J-1001',type:'sync',sourceId:'register',status:'Succeeded',createdAt:daysFrom(stamp,-2),detail:'Discovered public.reigns and synchronized its source inventory.'}
     ];
     addSampleDetail(datasets);
-    return {datasets,jobs,storageLocations:storageLocations.map(s => ({...s})),folders:initialFolders(datasets),layers:defaultLayers.map(layer => ({...layer})),
+    return {datasets,jobs,storageLocations:storageLocations.map(storageProfile.upgrade),folders:initialFolders(datasets),layers:defaultLayers.map(layer => ({...layer})),
       domains:[
         {id:'governance',name:'Governance & succession',description:'How a country is governed and how its leadership changes.'},
         {id:'gameplay',name:'Game systems',description:'Rules that govern campaign objectives, events and their effects.'},
@@ -276,7 +248,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       ],
       domainSubjects:[reignPair,missionsPair,domainSubject('governance','dynastic-succession'),domainSubject('diplomacy','dynastic-succession')],
       sourceDomainSubjects:{register:reignPair.id,guides:missionsPair.id},
-      sourceSubjects:{register:reignPair.subjectId,guides:missionsPair.subjectId},sourceOverrides:{},version:7};
+      sourceSubjects:{register:reignPair.subjectId,guides:missionsPair.subjectId},sourceOverrides:{},version:8};
   }
   function legacyValues(doc, knownFields) {
     // The old text format concatenated the field name and value in source order.
@@ -350,7 +322,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         if (raw) {
           if (reuseUnchanged && memory && lastReadValue === raw) return memory;
           const data = JSON.parse(raw);
-          if ([1,2,3,4,5,6,7].includes(data.version) && Array.isArray(data.datasets) && Array.isArray(data.jobs)) {
+          if ([1,2,3,4,5,6,7,8].includes(data.version) && Array.isArray(data.datasets) && Array.isArray(data.jobs)) {
             if (data.version === 1) migrateWarehouse(data);
             if (data.version === 2) {
               data.folders = initialFolders(data.datasets);
@@ -378,6 +350,11 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
                 s.locator ??= 'workspace/' + encodeURIComponent(s.id);
               }
               data.version = 7;
+              upgraded = true;
+            }
+            if (data.version === 7) {
+              data.storageLocations = (data.storageLocations || storageLocations).map(storageProfile.upgrade);
+              data.version = 8;
               upgraded = true;
             }
             for (const entry of [...data.domains,...data.subjects]) {
@@ -633,12 +610,13 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
   }
   const api = {
     snapshot:read,
-    storageTypes,
-    addStorage({name,type,locator,detail=''}) {
+    storageTypes:storageProfile.types,
+    testStorage:storageProfile.test,
+    addStorage(input) {
       return commit(data => {
-        name = named(name,'storage name');
+        const name = named(input.name,'storage name');
         unique(data.storageLocations,name);
-        const entry = {id:newId('storage'),name,type,locator:storageTarget(type,locator),detail:String(detail ?? '').trim()};
+        const entry = {id:newId('storage'),name,...storageProfile.normalize(input),detail:String(input.detail ?? '').trim()};
         data.storageLocations.push(entry);
         return entry.id;
       });
@@ -648,13 +626,12 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         const entry = existing(data.storageLocations,id,'storage location');
         const name = named(patch.name ?? entry.name,'storage name');
         unique(data.storageLocations,name,id);
-        const type = patch.type ?? entry.type;
-        const locator = storageTarget(type,patch.locator ?? entry.locator);
-        if (type !== entry.type || locator !== entry.locator) {
+        const target = storageProfile.revise(entry,patch);
+        if (!storageProfile.sameTarget(entry,target)) {
           const usage = storageUse(data,id);
           if (usage) throw new Error(usage + ' Reassign them before changing the target.');
         }
-        Object.assign(entry,{name,type,locator,detail:String(patch.detail ?? entry.detail ?? '').trim()});
+        Object.assign(entry,target,{name,detail:String(patch.detail ?? entry.detail ?? '').trim()});
         return id;
       });
     },
