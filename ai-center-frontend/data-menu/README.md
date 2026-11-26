@@ -19,13 +19,13 @@ Data                                 top navigation
 │  └─ Job history | Dataset schedules
 ├─ Taxonomy                           sidebar
 │  ├─ Domains → Domain definitions, totals and assigned assets
-│  ├─ Subjects → Subject definitions, linked domains, totals and assigned assets
-│  └─ Matrix → Read-only domain-by-subject counts
+│  ├─ Subjects → Subject definitions, totals and tagged assets
+│  └─ Coverage → Counts for classifications in use
 └─ Archive                            sidebar
    └─ Archived datasets → Restore
 ```
 
-In **Taxonomy**, use **Add datasets** on a domain or subject to classify existing datasets. Choose an active domain–subject combination and review the datasets’ current assignments before saving. Expand a folder to see the sources and datasets contributing to its totals. **Unassigned** lists assets awaiting classification and **Matrix** displays counts across both dimensions. To classify a single dataset while inspecting it, use its **Overview**. Both entry points update the same assignment.
+Each dataset or source can have one optional **Domain** and any number of **Subjects**. In **Taxonomy**, use **Add datasets** on a domain to set its members’ primary domain, or on a subject to add that topic to their existing subjects. Each vocabulary has its own **Unassigned** folder. **Coverage** summarizes classifications in use. A dataset’s **Overview** edits the same domain and subject assignments independently.
 
 **Sources** owns connection configuration and inventory. The database editor supports PostgreSQL, MySQL, SQL Server and SQLite. Network database profiles save the address, database and username. The password input is transient. Tests in this browser demo validate the profile using sample data. For a **Managed folder**, set a root and optionally a subdirectory, select allowed extensions and a parser, and enable recursion when required. File enumeration is simulated.
 
@@ -37,7 +37,7 @@ In **Taxonomy**, use **Add datasets** on a domain or subject to classify existin
 | Storages | Define where datasets are written. | Named storage locations and the active or archived datasets using them | Configure a destination by type, test its settings, inspect usage and remove an unused location. |
 | Datasets | Prepare warehouse records and build searchable collections. | Raw and detail layers, upstream assets, storage, transformations, schedules and indexes | Create a layer or dataset, materialize and export rows, explore lineage, schedule jobs, build retrieval and archive. |
 | Jobs | Investigate operations across sources and datasets. | Run history, failure details, retry attempts and schedule inventory | Filter by job type or status, inspect results, retry a failure or edit a dataset schedule within Jobs. |
-| Taxonomy | Classify assets under a common business vocabulary. | Domains, reusable subjects, allowed combinations and asset assignments | Define domains and subjects in their respective tabs. Maintain links in the subject editor, classify assets inside expanded folders and inspect coverage in the read-only matrix. |
+| Taxonomy | Classify assets by business area and topic. | Domain and subject definitions, asset assignments and usage counts | Define a domain or subject, classify assets singly or in bulk and review coverage. |
 | Archive | Find older collections and return them to active use. | Archived datasets, retained documents, configuration and storage references | Search the archive and restore a dataset. |
 
 ## 3. Try the lifecycle
@@ -45,7 +45,7 @@ In **Taxonomy**, use **Add datasets** on a domain or subject to classify existin
 1. Open **Sources → Anbennar mission notes → Connection**. Test the connection, sync the inventory and review its linked dataset names. Select **Datasets** from the sidebar and open **Mission reference** to see the source asset and storage destination. To try a different pairing, choose the **Create dataset** icon in the folder rail.
 2. On **Overview**, refresh the existing dataset or ingest a newly created raw dataset. Select the **Schedule** tab to choose an operation and recurrence. **Jobs → Dataset schedules** lists upcoming runs and offers **Schedule a job**. For a failure example, filter **Job history** by **Failed** and retry the sample mission refresh. The result identifies the new attempt. Open that attempt from the history list.
 3. For **Mission reference**, choose indexed documents under **Documents**. In **Retrieval**, configure parsing, chunking, embeddings and index type, then build the index. Try a document search in **Data preview**. Changing the document selection makes the index **Rebuild required**. For **Reign detail**, use **Retrieval** to choose filter and return fields and add an equality index on `country_tag`. In **Data preview**, try `country_tag = FRA`, `start_date ≤ 1444-11-11`, and `end_date > 1444-11-11` to retrieve Charles VII and the source row.
-4. Open **Taxonomy → Subjects** and choose **Add datasets** beside **Dynastic succession**. Choose the **Governance & succession** domain, select **Reign detail** and save. Expand the subject to see its new member. Open **Reign detail → Overview** from Datasets to see or change the same assignment. **Matrix** reflects the updated counts.
+4. Open **Taxonomy → Subjects** and choose **Add datasets** beside **Dynastic succession**. Select **Reign detail** and save. In a fresh workspace its **Overview** now shows the domain **Governance & succession** and two subjects, **Monarchs and reigns** and **Dynastic succession**. You can change the domain while keeping both topics. **Coverage** reflects the saved assignments.
 5. On a dataset's **Overview**, choose **Archive dataset**. Its data, source link, storage choice, configuration, classifications and history are retained. Its schedule stops. Archiving disables structured queries and withdraws document indexes. **Archive → Restore** makes retained table rows available for queries again. Restore and rebuild a document index to resume RAG. Re-enable schedules separately.
 
 The demo stores changes in the browser. The named storage locations represent logical destinations. Connection checks, imports and index builds operate on local sample records. Document searches match text in the last published index. Structured queries apply all configured conditions to current materialized rows and return the selected columns and source locator. Model and index selections demonstrate configuration and rebuild behavior. The local scheduler checks while the page is open and runs one catch-up job on reopening when a schedule is overdue.

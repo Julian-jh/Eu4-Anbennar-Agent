@@ -369,31 +369,35 @@
         schedule = window.DataSchedule.description(plan);
         if (plan.nextAt) schedule += ' · Next run ' + window.DataSchedule.display(plan.nextAt,window.DataSchedule.settings(plan).zone);
       }
-      const pairId = active.domainSubjectId || '';
-      const classification = group('dm-overview-value',node('span',window.TaxonomyAssignment.describe(snapshot,pairId)));
-      if (!active.archived) {
-        const asset = {kind:'dataset',id:active.id,name:active.name,pairId};
-        const returnFocus = () => host.querySelector('[data-dataset-assignment]')?.focus();
-        const assign = button(pairId ? 'Change' : 'Assign',() => window.TaxonomyAssignment.open(view,{
-          store,asset,trigger:assign,refresh:ctx.refresh,onSaved() {status('Dataset classification saved.');returnFocus();}
+      function classificationRow(axis) {
+        const domain = axis === 'domain';
+        const property = domain ? 'Domain' : 'Subjects';
+        const names = window.Taxonomy.definitionNames(domain ? snapshot.domains : snapshot.subjects);
+        const ids = domain ? [active.domainId].filter(Boolean) : active.subjectIds;
+        const titles = ids.map(id => names.get(id) || id);
+        const value = group('dm-overview-value',node('span',titles.join(', ') || (domain ? 'Unassigned' : 'None')));
+        if (active.archived) return [property,value];
+        const asset = {kind:'dataset',id:active.id,name:active.name};
+        const returnFocus = () => host.querySelector('[data-dataset-assignment="' + axis + '"]')?.focus();
+        const assign = button((ids.length ? 'Edit ' : 'Assign ') + property.toLowerCase(),() => window.TaxonomyAssignment.open(view,{
+          store,asset,axis,trigger:assign,refresh:ctx.refresh,onSaved() {status(property + ' saved.');returnFocus();}
         }));
-        assign.dataset.datasetAssignment = '';
-        if (pairId) assign.setAttribute('aria-label','Change assignment');
+        assign.dataset.datasetAssignment = axis;
         assign.classList.add('dm-overview-action');
         const actions = group('dm-actions dm-overview-value-actions',assign);
-        if (pairId) {
-          const remove = button('Remove',() => execute(() => store.assignAssetPair('dataset',active.id,''),'Dataset classification removed.',() => {
-            ctx.refresh();
-            returnFocus();
-          }));
-          remove.classList.add('dm-overview-action');
-          remove.setAttribute('aria-label','Remove assignment');
-          actions.append(remove);
+        if (ids.length) {
+          const clear = button('Clear',() => execute(() => store.setAssetClassification('dataset',active.id,
+            domain ? {domainId:''} : {subjectIds:[]},domain ? {domainId:active.domainId} : {subjectIds:active.subjectIds}),
+          property + ' cleared.',() => {ctx.refresh();returnFocus();}));
+          clear.classList.add('dm-overview-action');
+          clear.setAttribute('aria-label','Clear ' + property.toLowerCase());
+          actions.append(clear);
         }
-        classification.append(actions);
+        value.append(actions);
+        return [property,value];
       }
       const links = table(['Dataset property','Value'],[
-        ['Folder',folder],['Domain / Subject',classification],
+        ['Folder',folder],classificationRow('domain'),classificationRow('subject'),
         ['Warehouse layer',layer ? layer.code + ' · ' + layer.name : active.layer],...inputRows,
         ['Storage',location ? location.name : active.storage],['Rows',active.docs.length],['Schedule',schedule],
         ['Retrieval',active.dataType === 'table' ? 'Structured table lookup' : 'Document search'],

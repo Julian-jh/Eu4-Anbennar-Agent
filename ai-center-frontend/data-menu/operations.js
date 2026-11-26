@@ -4,7 +4,7 @@
   const sessions = new WeakMap();
   const jobLabels = {ingest: 'Ingestion', refresh: 'Data refresh', rebuild: 'Index rebuild', sync: 'Source sync', test: 'Connection test'};
   const jobStatuses = ['Succeeded', 'Failed', 'Skipped', 'Running', 'Queued'];
-  const taxonomyTabs = {domains:'Domains', subjects:'Subjects', matrix:'Matrix'};
+  const taxonomyTabs = {domains:'Domains', subjects:'Subjects', coverage:'Coverage'};
   const timeFormat = new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'});
 
   function displayTime(value) {
@@ -42,8 +42,9 @@
       `<option value="${esc(value)}"${value === current ? ' selected' : ''}>${esc(label)}</option>`;
     const badge = value => `<span class="dm-badge" data-status="${esc(term(value))}">${esc(value)}</span>`;
     const legacyTaxonomy = !Object.hasOwn(params,'folders') && (params.domain || params.subject || params.view === 'assignments' || params.tab === 'assignments');
-    let taxTab = Object.hasOwn(taxonomyTabs,params.tab) ? params.tab : 'domains';
-    if (legacyTaxonomy && taxTab !== 'matrix') {
+    const requestedTab = params.tab === 'matrix' ? 'coverage' : params.tab;
+    let taxTab = Object.hasOwn(taxonomyTabs,requestedTab) ? requestedTab : 'domains';
+    if (legacyTaxonomy && taxTab !== 'coverage') {
       if (params.subject && !params.domain) taxTab = 'subjects';
       if (params.domain && !params.subject) taxTab = 'domains';
     }
@@ -134,8 +135,8 @@
     }
     function assetRows() {
       return [
-        ...active.map(asset => ({kind:'dataset',id:asset.id,name:asset.name,pairId:asset.domainSubjectId || ''})),
-        ...sources.map(asset => ({kind:'source',id:asset.id,name:asset.name,pairId:data.sourceDomainSubjects[asset.id] || ''}))
+        ...active.map(({id,name,domainId,subjectIds}) => ({kind:'dataset',id,name,domainId,subjectIds})),
+        ...sources.map(({id,name}) => ({kind:'source',id,name,domainId:data.sourceDomainIds[id] || '',subjectIds:data.sourceSubjectIds[id] || []}))
       ];
     }
     function mountDefinitions(host) {
@@ -153,7 +154,7 @@
       }
       const assetFilter = legacyTaxonomy && params.domain && params.subject ? {domain:params.domain,subject:params.subject} : undefined;
       window.TaxonomyDefinitions.mount(host,{
-        ...ctx,kind,assets:assetRows(),openFolderIds,assetFilter,
+        ...ctx,data,kind,assets:assetRows(),openFolderIds,assetFilter,
         changeFolders(ids) {
           const next = validated(ids);
           go('taxonomy',next.length ? {tab:taxTab,folders:JSON.stringify(next)} : {tab:taxTab});
@@ -163,7 +164,7 @@
     function taxonomyPage() {
       const tabs = Object.entries(taxonomyTabs).map(([id,name]) =>
         `<button type="button" class="dm-btn" ${flags('taxonomy-tab',id)} aria-pressed="${taxTab === id}">${name}</button>`).join('');
-      const content = taxTab === 'matrix' ? '<div data-tax-matrix></div>' : '<div data-tax-definitions></div>';
+      const content = taxTab === 'coverage' ? '<div data-tax-coverage></div>' : '<div data-tax-definitions></div>';
       return `<h1 class="sr-only">Taxonomy</h1><div class="dm-tabs" role="group" aria-label="Taxonomy views">${tabs}</div>${content}`;
     }
     function archivePage() {
@@ -186,8 +187,8 @@
     wrapper.innerHTML = `<div class="dm-notice" role="status"${notice ? '' : ' hidden'}>${esc(notice)}</div>` +
       (area === 'taxonomy' ? taxonomyPage() : area === 'archive' ? archivePage() : jobsPage());
     host.replaceChildren(wrapper);
-    const matrix = wrapper.querySelector('[data-tax-matrix]');
-    if (matrix) window.TaxonomyMatrix.mount(matrix,{store,assets:assetRows()});
+    const coverage = wrapper.querySelector('[data-tax-coverage]');
+    if (coverage) window.Taxonomy.mountCoverage(coverage,{data,assets:assetRows()});
     const definitions = wrapper.querySelector('[data-tax-definitions]');
     if (definitions) mountDefinitions(definitions);
     const scheduleEditor = wrapper.querySelector('[data-schedule-editor]');

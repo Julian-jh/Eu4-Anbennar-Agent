@@ -4,7 +4,7 @@
 
 ## Domains and subjects
 
-A domain describes an area of gameplay. A subject describes a topic a player might investigate across several domains. Maintain each subject once and link it to the domains in which it is relevant. The table below lists suggested domain–subject pairs. Repeated subject names refer to the same subject ID.
+A domain describes an area of gameplay. A subject describes a topic a player might investigate across several domains. Maintain each subject once. The examples below illustrate how a topic can occur in different domains. Repeated subject names refer to the same subject ID.
 
 | Domain | Initial subjects | Example lookup |
 |---|---|---|
@@ -24,26 +24,27 @@ The first seven domains provide a shared vocabulary. Populate each subject only 
 | Dimension | Example values | What it lets the administrator or assistant do |
 |---|---|---|
 | Corpus | EU4, Anbennar, Real History | Select the world or body of evidence. |
-| Domain and subject | Diplomacy & subjects × Dynastic succession | Select a gameplay context and a topic together, or search for the topic across contexts. |
+| Domain | Diplomacy & subjects | Filter by the area of gameplay. |
+| Subjects | Dynastic succession, Subject states & unions | Search for a topic across domains or combine it with a domain filter. |
 | Record kind | Mechanic, mission tree, mission, event, decision, modifier, country, subject type, invention | Find all events or missions in a corpus, then narrow by topic. |
 | Linked entity | Country, province, estate, religion, resource | Find missions available to a country or decisions affecting a particular estate. |
 | Release context | EU4 patch, Anbennar release or commit, enabled DLC | Resolve the applicable definition of a record. |
 
-**Worked example.** Define *Dynastic succession* once. Link it to *Governance & succession* and *Diplomacy & subjects*. Give a game record explaining how a domestic heir takes the throne the first pair. Give a game record explaining how succession affects a personal union the second pair. Searching the subject alone returns both records. Adding the diplomacy filter returns only the second. If one record directly covers both contexts, assign both pairs and show the record once in results.
+**Worked example.** Assign a record about a domestic heir to *Governance & succession* and a record about a personal union to *Diplomacy & subjects*. Tag both with *Dynastic succession*. Searching that subject returns both records. Adding the diplomacy filter returns the second.
 
-**Administration.** Define domains and subjects in separate tabs. Each lists its own active relationships and the sources and datasets explicitly classified under that dimension. Maintain domain links in the subject editor. Retiring a link preserves existing classifications and closes it to new assignments. The final matrix displays domains as rows, reusable subjects as columns and active asset counts at their intersections. It is read-only. The asset lists and the matrix use the same saved assignments, including those retained on retired pairs.
+**Administration.** Define domains and subjects in separate tabs. A catalog asset can have one primary domain and several subjects. Either dimension can be empty. Domain folders list assets assigned to that area. Subject folders list assets tagged with that topic. Coverage counts come from the classifications in use.
 
-**Current demo.** Each source or dataset has one optional catalog classification. The prototype migrates each former parent link to a domain–subject pair and points the existing asset assignments to it. This preserves the existing *Game systems → Missions and events* assignments. In the record-level model a source or dataset can suggest its pair to the import reviewer. Mixed collections can remain unassigned. Individual missions and events can be found using the record-kind filter.
+**Current demo.** An existing *Game systems → Missions and events* catalog assignment becomes the domain *Game systems* and the subject *Missions and events*. A reviewer can change either independently. The proposed record-level model can use these asset classifications as defaults and refine them for individual missions and events.
 
 ## Minimum logical records
 
 | Record | Grain and essential fields |
 |---|---|
 | Domain, Subject | Two independent vocabularies with stable IDs, labels and short definitions. A subject keeps the same ID in every domain where it is used. |
-| Domain subject (`domain_subject`) | One allowed pair with an ID and a unique combination of `domain_id` and `subject_id`. A steward can retire a pair for new assignments while preserving existing references. |
+| Asset classification | A source or dataset has an optional `domain_id`. Each subject membership links its asset ID to one `subject_id`, unique per asset and subject. |
 | Corpus, Release | A release identifies a source snapshot within a corpus. For games capture the base patch, optional mod release or commit, source channel and enabled DLC. For history use the evidence collection edition. |
 | Record, Record revision | A record is one identity within a corpus, kind and qualified key. A revision holds its definition for one release, with localized names. Stable import keys keep renamed display labels and repeated imports attached to the same identity. |
-| Revision classification (`revision_classification`) | Links `revision_id` to an allowed `domain_subject_id` with role primary or secondary. Each pair occurs once per revision. One primary assignment gives a published revision its default display location. Secondary assignments describe additional contexts the record actually covers. A draft can await classification. |
+| Revision classification | Domain memberships identify a revision’s primary or secondary gameplay contexts. Subject memberships tag the revision with each applicable topic. A revision may await either classification. |
 | Rule block | Stores a revision's availability, triggers, choices or effects with scope, nesting and ordering. Keep the source expression so alternatives, option-specific effects and DLC requirements survive extraction. |
 | Relation | Connects revisions in a release using a named relationship such as belongs to tree, available to country, requires mission, triggers event or grants modifier. An optional rule-block reference identifies the choice or condition under which it applies. |
 | Evidence | Links a revision, rule block or relation to a source asset revision and a precise locator, such as a script key and line range, PDF page, web heading or database row key. A record may have multiple citations. |

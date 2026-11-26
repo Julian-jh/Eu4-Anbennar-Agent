@@ -1,95 +1,82 @@
 (() => {
   'use strict';
 
-  function element(tag, text, className) {
-    const el = document.createElement(tag);
-    if (text !== undefined) el.textContent = text;
-    if (className) el.className = className;
-    return el;
+  function definitionNames(definitions) {
+    const counts = new Map();
+    for (const {name} of definitions) {
+      const key = name.toLowerCase();
+      counts.set(key,(counts.get(key) || 0) + 1);
+    }
+    return new Map(definitions.map(({id,name}) => [id,counts.get(name.toLowerCase()) > 1 ? name + ' · ' + id : name]));
   }
 
-  function mount(host, {store, assets}) {
-    const {domains,subjects,domainSubjects} = store.snapshot();
-    const pairsByDomain = new Map(domains.map(domain => [domain.id,new Map()]));
-    for (const pair of domainSubjects) pairsByDomain.get(pair.domainId)?.set(pair.subjectId,pair);
-
-    const counts = new Map();
-    const seen = new Set();
+  function observedGroups(data,assets) {
+    const domains = definitionNames(data.domains), subjects = definitionNames(data.subjects);
+    const groups = new Map();
     for (const asset of assets) {
-      if (!asset.pairId) continue;
-      const key = JSON.stringify([asset.kind,asset.id]);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      counts.set(asset.pairId,(counts.get(asset.pairId) || 0) + 1);
-    }
-
-    const section = element('section',undefined,'tm-section');
-    section.setAttribute('aria-label','Domain and subject matrix');
-    host.replaceChildren(section);
-    if (!domains.length || !subjects.length) {
-      section.append(element('p','The matrix needs at least one domain and one subject.','tm-empty'));
-      return;
-    }
-    const legend = element('p','Numbers count explicitly assigned assets. Plain numbers indicate active relationships, “retired” marks retained assignments, and a dash means no relationship.','tm-legend');
-    legend.id = 'tm-legend';
-    section.append(legend);
-
-    // Distinguish older subjects which share a display name and have separate identities.
-    const nameCounts = new Map();
-    for (const {name} of subjects) {
-      const key = name.toLowerCase();
-      nameCounts.set(key,(nameCounts.get(key) || 0) + 1);
-    }
-    const table = element('table',undefined,'tm-table');
-    table.style.setProperty('--tm-cols',String(subjects.length));
-    table.setAttribute('aria-describedby',legend.id);
-    table.append(element('caption','Assigned assets by domain and subject','sr-only'));
-    const columns = element('colgroup');
-    columns.append(element('col',undefined,'tm-row-column'));
-    for (const subject of subjects) columns.append(element('col'));
-    table.append(columns);
-
-    const header = table.createTHead().insertRow();
-    const corner = element('th','Domain / Subject','tm-corner');
-    corner.scope = 'col';
-    header.append(corner);
-    for (const subject of subjects) {
-      const name = nameCounts.get(subject.name.toLowerCase()) > 1 ? subject.name + ' (' + subject.id + ')' : subject.name;
-      const cell = element('th',name);
-      cell.scope = 'col';
-      header.append(cell);
-    }
-    const body = table.createTBody();
-    for (const domain of domains) {
-      const row = body.insertRow();
-      const heading = element('th',domain.name);
-      heading.scope = 'row';
-      row.append(heading);
-      for (const subject of subjects) {
-        const pair = pairsByDomain.get(domain.id).get(subject.id);
-        const cell = row.insertCell();
-        if (!pair) {
-          const dash = element('span','—','tm-dash');
-          dash.setAttribute('aria-hidden','true');
-          cell.append(dash,element('span','No relationship','sr-only'));
-          continue;
+      const domain = domains.get(asset.domainId) || 'No domain';
+      for (const subjectId of asset.subjectIds.length ? asset.subjectIds : ['']) {
+        const key = JSON.stringify([asset.domainId,subjectId]);
+        if (!groups.has(key)) {
+          groups.set(key,{domain,subject:subjects.get(subjectId) || 'No subjects',source:0,dataset:0});
         }
-        const count = counts.get(pair.id) || 0;
-        cell.dataset.state = pair.active ? 'active' : 'retired';
-        cell.append(element('span',String(count),'tm-count'));
-        cell.append(element('span',count === 1 ? ' assigned asset' : ' assigned assets','sr-only'));
-        if (pair.active) cell.append(element('span',', active relationship','sr-only'));
-        else cell.append(element('span',' Retired','tm-retired'));
+        groups.get(key)[asset.kind]++;
       }
     }
-
-    const viewport = element('div',undefined,'tm-viewport');
-    viewport.setAttribute('role','region');
-    viewport.setAttribute('aria-label','Scrollable matrix');
-    viewport.tabIndex = 0;
-    viewport.append(table);
-    section.append(viewport);
+    return [...groups.values()].sort((a,b) => a.domain.localeCompare(b.domain) || a.subject.localeCompare(b.subject));
   }
 
-  window.TaxonomyMatrix = {mount};
+  function mountCoverage(host,{data,assets}) {
+    const groups = observedGroups(data,assets);
+    const section = document.createElement('section');
+    section.className = 'dm-tax-assets td-coverage';
+    section.setAttribute('aria-label','Classification coverage');
+    section.innerHTML = `<div class="dm-head"><strong data-total></strong>
+      <label class="td-search"><span class="sr-only">Search coverage</span><input type="search" placeholder="Find domain or subject"></label></div>
+      <p id="td-coverage-note" class="dm-muted">Each asset counts once per subject. Assets with no domain or no subjects are included.</p>
+      <div class="dm-table-wrap"><table class="dm-table" aria-label="Classification coverage" aria-describedby="td-coverage-note">
+        <thead><tr><th scope="col">Domain</th><th scope="col">Subject</th><th scope="col">Sources</th><th scope="col">Datasets</th></tr></thead><tbody></tbody>
+      </table></div>
+      <nav class="dm-preview-pages" aria-label="Coverage pagination"><span class="dm-muted" role="status"></span>
+        <button type="button" class="dm-btn" data-previous>Previous</button><button type="button" class="dm-btn" data-next>Next</button></nav>`;
+    host.replaceChildren(section);
+    section.querySelector('[data-total]').textContent = assets.length + (assets.length === 1 ? ' active asset' : ' active assets');
+    const body = section.querySelector('tbody');
+    const search = section.querySelector('input');
+    const status = section.querySelector('[role=status]');
+    const previous = section.querySelector('[data-previous]'), next = section.querySelector('[data-next]');
+    const pageSize = 25;
+    let page = 0, filtered = groups;
+
+    function draw() {
+      body.replaceChildren();
+      const start = page * pageSize;
+      for (const group of filtered.slice(start,start + pageSize)) {
+        const row = body.insertRow();
+        for (const value of [group.domain,group.subject,group.source,group.dataset]) row.insertCell().textContent = value;
+      }
+      if (!filtered.length) {
+        const empty = body.insertRow().insertCell();
+        empty.colSpan = 4;
+        empty.className = 'dm-muted';
+        empty.textContent = groups.length ? 'No matching classifications.' : 'No active assets.';
+      }
+      const end = Math.min(start + pageSize,filtered.length);
+      status.textContent = filtered.length ? (start + 1) + '–' + end + ' of ' + filtered.length + (filtered.length === 1 ? ' group' : ' groups') : '0 groups';
+      previous.hidden = next.hidden = filtered.length <= pageSize;
+      previous.disabled = page === 0;
+      next.disabled = end >= filtered.length;
+    }
+    search.oninput = () => {
+      const term = search.value.trim().toLowerCase();
+      filtered = term ? groups.filter(group => [group.domain,group.subject].some(name => name.toLowerCase().includes(term))) : groups;
+      page = 0;
+      draw();
+    };
+    previous.onclick = () => { page--;draw(); };
+    next.onclick = () => { page++;draw(); };
+    draw();
+  }
+
+  window.Taxonomy = {mountCoverage,definitionNames};
 })();

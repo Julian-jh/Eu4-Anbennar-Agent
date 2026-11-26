@@ -70,7 +70,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       Object.fromEntries(object.fields.map((field, column) => [field,row[column] ?? null]))));
   }
   function datasetRecord(id, name, sourceId, asset, storage) {
-    return {id,name,sourceId,asset,storage,folderId:null,layer:'ODS',upstreamId:null,grain:'',keyField:'',domainSubjectId:'',subjectId:'',archived:false,archivedAt:null,
+    return {id,name,sourceId,asset,storage,folderId:null,layer:'ODS',upstreamId:null,grain:'',keyField:'',domainId:'',subjectIds:[],archived:false,archivedAt:null,
       docs:[],config:{...defaults},snapshotDocs:[],buildSignature:null,indexedAt:null,indexStatus:'Not built',
       schedule:{type:'refresh',frequency:'Daily',enabled:false,nextAt:null}};
   }
@@ -189,7 +189,8 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         !upstream.docs.every(doc => Object.keys(doc.values || {}).length)) return;
     const detail = datasetRecord('reign-detail','Reign detail',upstream.sourceId,upstream.asset,upstream.storage);
     Object.assign(detail,{layer:'DWD',upstreamId:upstream.id,grain:'One reign per ruler and country',
-      subjectId:upstream.subjectId,domainSubjectId:upstream.domainSubjectId || ''});
+      domainId:upstream.domainId || '',subjectIds:[...(upstream.subjectIds || [])]});
+    if (upstream.subjectId) detail.subjectId = upstream.subjectId; // The v1 upgrade creates this example before taxonomy migration.
     detail.docs = materialize(upstream, '');
     initializeRetrieval(detail);
     datasets.push(detail);
@@ -221,12 +222,10 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       ds.docs = readDocuments(sourceFor(ds.sourceId),ds.asset);
       initializeRetrieval(ds);
     }
-    const reignPair = domainSubject('governance','monarchs');
-    const missionsPair = domainSubject('gameplay','missions-and-events');
-    Object.assign(reigns,{domainSubjectId:reignPair.id,subjectId:reignPair.subjectId});
+    Object.assign(reigns,{domainId:'governance',subjectIds:['monarchs']});
     reigns.schedule = window.DataSchedule.save(reigns.schedule,{type:'refresh',frequency:'Daily',time:'09:00',zone:'UTC',enabled:true},stamp);
-    Object.assign(missions,{domainSubjectId:missionsPair.id,subjectId:missionsPair.subjectId});
-    Object.assign(old,{domainSubjectId:reignPair.id,subjectId:reignPair.subjectId});
+    Object.assign(missions,{domainId:'gameplay',subjectIds:['missions-and-events']});
+    Object.assign(old,{domainId:'governance',subjectIds:['monarchs']});
     old.archived = true;
     old.archivedAt = daysFrom(stamp,-8);
     const jobs = [
@@ -246,9 +245,8 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         {id:'missions-and-events',name:'Missions and events',description:'Campaign objectives and events, including their requirements, choices and rewards.'},
         {id:'dynastic-succession',name:'Dynastic succession',description:'How a crown passes between rulers and how its inheritance affects other countries.'}
       ],
-      domainSubjects:[reignPair,missionsPair,domainSubject('governance','dynastic-succession'),domainSubject('diplomacy','dynastic-succession')],
-      sourceDomainSubjects:{register:reignPair.id,guides:missionsPair.id},
-      sourceSubjects:{register:reignPair.subjectId,guides:missionsPair.subjectId},sourceOverrides:{},version:8};
+      sourceDomainIds:{register:'governance',guides:'gameplay'},
+      sourceSubjectIds:{register:['monarchs'],guides:['missions-and-events']},sourceOverrides:{},version:9};
   }
   function legacyValues(doc, knownFields) {
     // The old text format concatenated the field name and value in source order.
@@ -295,16 +293,41 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     for (const dataset of data.datasets) {
       const pair = previousParent.get(dataset.subjectId);
       dataset.domainSubjectId = pair?.id || '';
-      dataset.subjectId = pair?.subjectId || '';
     }
     data.sourceSubjects ||= {};
     data.sourceDomainSubjects = {};
     for (const [id,subjectId] of Object.entries(data.sourceSubjects)) {
       const pair = previousParent.get(subjectId);
       data.sourceDomainSubjects[id] = pair?.id || '';
-      data.sourceSubjects[id] = pair?.subjectId || '';
     }
     data.version = 5;
+  }
+  function migrateIndependentClassification(data) {
+    const pairs = new Map((data.domainSubjects || []).map(pair => [pair.id,pair]));
+    function unpack(pairId,legacySubjectId) {
+      // Retiring a pair never removed the existing asset assignments.
+      const pair = pairs.get(pairId);
+      const subjectId = pair?.subjectId || legacySubjectId;
+      return {domainId:pair?.domainId || '',subjectIds:subjectId ? [subjectId] : []};
+    }
+    for (const ds of data.datasets) {
+      Object.assign(ds,unpack(ds.domainSubjectId,ds.subjectId));
+      delete ds.domainSubjectId;
+      delete ds.subjectId;
+    }
+    data.sourceDomainIds = {};
+    data.sourceSubjectIds = {};
+    const sourcePairs = data.sourceDomainSubjects || {};
+    const sourceSubjects = data.sourceSubjects || {};
+    for (const id of new Set([...Object.keys(sourcePairs),...Object.keys(sourceSubjects)])) {
+      const {domainId,subjectIds} = unpack(sourcePairs[id],sourceSubjects[id]);
+      data.sourceDomainIds[id] = domainId;
+      data.sourceSubjectIds[id] = subjectIds;
+    }
+    delete data.sourceDomainSubjects;
+    delete data.sourceSubjects;
+    delete data.domainSubjects;
+    data.version = 9;
   }
   let memory;
   let lastReadValue;
@@ -322,7 +345,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         if (raw) {
           if (reuseUnchanged && memory && lastReadValue === raw) return memory;
           const data = JSON.parse(raw);
-          if ([1,2,3,4,5,6,7,8].includes(data.version) && Array.isArray(data.datasets) && Array.isArray(data.jobs)) {
+          if ([1,2,3,4,5,6,7,8,9].includes(data.version) && Array.isArray(data.datasets) && Array.isArray(data.jobs)) {
             if (data.version === 1) migrateWarehouse(data);
             if (data.version === 2) {
               data.folders = initialFolders(data.datasets);
@@ -355,6 +378,10 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
             if (data.version === 7) {
               data.storageLocations = (data.storageLocations || storageLocations).map(storageProfile.upgrade);
               data.version = 8;
+              upgraded = true;
+            }
+            if (data.version === 8) {
+              migrateIndependentClassification(data);
               upgraded = true;
             }
             for (const entry of [...data.domains,...data.subjects]) {
@@ -405,31 +432,11 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     if (typeof value !== 'string' || value.trim().length > 500) throw new Error('Enter a description of up to 500 characters.');
     return value.trim();
   }
-  function subjectMemberships(data, subjectId, domainIds) {
-    if (!Array.isArray(domainIds)) throw new Error('Select domains from the list.');
-    const selected = new Set(domainIds);
-    if (selected.size !== domainIds.length) throw new Error('Select each domain only once.');
-    for (const domainId of selected) existing(data.domains,domainId,'domain');
-
-    // Build the full replacement before saving the subject. Existing pair IDs stay valid after retirement.
-    const memberships = data.domainSubjects.map(pair => {
-      if (pair.subjectId !== subjectId) return pair;
-      const enabled = selected.delete(pair.domainId);
-      return enabled === pair.active ? pair : {...pair,active:enabled};
-    });
-    for (const domainId of selected) memberships.push(domainSubject(domainId,subjectId));
-    return memberships;
-  }
-  function assignAssetPair(data, kind, id, pairId) {
-    const pair = pairId ? existing(data.domainSubjects,pairId,'domain–subject pair') : null;
-    if (pair && !pair.active) throw new Error('Choose an active domain–subject pair.');
-    if (kind === 'dataset') {
-      Object.assign(active(data,id),{domainSubjectId:pair?.id || '',subjectId:pair?.subjectId || ''});
-    } else if (kind === 'source') {
-      existing(sources,id,'source');
-      data.sourceDomainSubjects[id] = pair?.id || '';
-      data.sourceSubjects[id] = pair?.subjectId || '';
-    } else throw new Error('Unknown asset type.');
+  function expectClassification(current,expected,name) {
+    const matches = Array.isArray(current)
+      ? Array.isArray(expected) && current.length === expected.length && current.every(id => expected.includes(id))
+      : current === expected;
+    if (!matches) throw new Error('The classification of “' + name + '” changed. Reopen the picker to review it.');
   }
   function folderReference(data, id) {
     return id == null ? null : existing(data.folders,id,'folder').id;
@@ -963,55 +970,51 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         // Legacy subjects in different domains may already share a display name.
         if (!subject || subject.name.toLowerCase() !== name.toLowerCase()) unique(data.subjects,name,input.id);
         const id = subject?.id || newId('subject');
-        let domainIds = input.domainIds;
-        if (domainIds === undefined && !subject && input.domainId) domainIds = [input.domainId];
-        const memberships = domainIds === undefined ? data.domainSubjects : subjectMemberships(data,id,domainIds);
         if (subject) Object.assign(subject,{name,description});
         else data.subjects.push({id,name,description});
-        data.domainSubjects = memberships;
         return id;
       });
     },
-    setDomainSubject(domainId,subjectId,enabled) {
+    setAssetClassification(kind,id,patch,expected) {
       return commit(data => {
-        existing(data.domains,domainId,'domain');
-        existing(data.subjects,subjectId,'subject area');
-        if (typeof enabled !== 'boolean') throw new Error('Choose whether the pair is active.');
-        const pair = data.domainSubjects.find(link => link.domainId === domainId && link.subjectId === subjectId);
-        if (pair) {
-          pair.active = enabled;
-          return pair.id;
+        if (kind !== 'dataset' && kind !== 'source') throw new Error('Unknown asset type.');
+        const ds = kind === 'dataset' ? active(data,id) : null;
+        const asset = ds || existing(sources,id,'source');
+        if (asset.archived) throw new Error('Restore this asset before changing its classification.');
+        const settings = {};
+        if (Object.hasOwn(patch,'domainId')) {
+          if (expected) expectClassification(ds ? ds.domainId : data.sourceDomainIds[id] || '',expected.domainId,asset.name);
+          settings.domainId = patch.domainId === '' ? '' : existing(data.domains,patch.domainId,'domain').id;
         }
-        if (!enabled) return null;
-        const link = domainSubject(domainId,subjectId);
-        data.domainSubjects.push(link);
-        return link.id;
+        if (Object.hasOwn(patch,'subjectIds')) {
+          if (expected) expectClassification(ds ? ds.subjectIds : data.sourceSubjectIds[id] || [],expected.subjectIds,asset.name);
+          if (!Array.isArray(patch.subjectIds)) throw new Error('Select subjects from the list.');
+          const ids = [...new Set(patch.subjectIds)];
+          for (const subjectId of ids) existing(data.subjects,subjectId,'subject');
+          settings.subjectIds = ids;
+        }
+        if (ds) Object.assign(ds,settings);
+        else {
+          if (Object.hasOwn(settings,'domainId')) data.sourceDomainIds[id] = settings.domainId;
+          if (Object.hasOwn(settings,'subjectIds')) data.sourceSubjectIds[id] = settings.subjectIds;
+        }
       });
     },
-    assignAssetPair(kind,id,pairId) {
-      return commit(data => assignAssetPair(data,kind,id,pairId));
-    },
-    assignDatasetsToPair(ids,pairId,expectedPairs) {
+    classifyDatasets(ids,kind,definitionId,expected) {
       return commit(data => {
-        const pair = existing(data.domainSubjects,pairId,'domain–subject pair');
-        if (!pair.active) throw new Error('Choose an active domain–subject pair.');
+        if (kind !== 'domain' && kind !== 'subject') throw new Error('Choose a domain or a subject.');
+        const isDomain = kind === 'domain';
+        existing(isDomain ? data.domains : data.subjects,definitionId,kind);
         const selection = selectedDatasets(data,ids);
-        for (const ds of selection) {
-          if (expectedPairs && ds.domainSubjectId !== expectedPairs[ds.id]) {
-            throw new Error('The classification of “' + ds.name + '” changed. Reopen the picker to review the latest assignments.');
-          }
+        if (expected) for (const ds of selection) {
+          expectClassification(isDomain ? ds.domainId : ds.subjectIds,expected[ds.id],ds.name);
         }
-        for (const ds of selection) Object.assign(ds,{domainSubjectId:pair.id,subjectId:pair.subjectId});
-        return selection.length;
-      });
-    },
-    assignAsset(kind,id,subjectId) {
-      return commit(data => {
-        if (!subjectId) return assignAssetPair(data,kind,id,'');
-        existing(data.subjects,subjectId,'subject area');
-        const links = data.domainSubjects.filter(pair => pair.subjectId === subjectId);
-        if (links.length !== 1 || !links[0].active) throw new Error('Select an active domain and subject together.');
-        return assignAssetPair(data,kind,id,links[0].id);
+        const changed = selection.filter(ds => isDomain ? ds.domainId !== definitionId : !ds.subjectIds.includes(definitionId));
+        for (const ds of changed) {
+          if (isDomain) ds.domainId = definitionId;
+          else ds.subjectIds.push(definitionId);
+        }
+        return changed.length;
       });
     },
     editSource(id,input) {
