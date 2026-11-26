@@ -103,6 +103,7 @@
 .td-dataset-option:has(input:disabled) { cursor: default; }
 .td-dataset-option:has(input:checked) { background: var(--accent-soft); }
 .td-dataset-picker select { min-width: 0; max-width: 100%; }
+.td-fixed-destination strong { color: var(--ink); font-size: .95rem; overflow-wrap: anywhere; }
 @media (pointer: coarse) {
   .td-folder,.td-members button,.td-folder-actions button,.td-member-action button { min-height: 44px; }
 }

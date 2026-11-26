@@ -87,6 +87,7 @@
     dialog.innerHTML = `<h2 id="td-picker-title">Add datasets</h2>
       <form class="td-form">
         <label class="dm-field" data-destination>Domain / Subject<select name="pair"></select></label>
+        <div class="dm-field td-fixed-destination" data-fixed hidden>Domain / Subject<strong></strong></div>
         <div data-link-panel hidden>
           <p class="dm-muted" data-link-hint></p>
           <label class="dm-field"><span data-counterpart></span><select name="counterpart"></select></label>
@@ -180,7 +181,10 @@
       if (pairs.length > 1) pairSelect.add(new Option('Choose a domain / subject pair',''));
       for (const pair of pairs) pairSelect.add(new Option(pair.name,pair.id));
       if (preferred && pairs.some(pair => pair.id === preferred)) pairSelect.value = preferred;
-      dialog.querySelector('[data-destination]').hidden = !pairs.length;
+      dialog.querySelector('[data-destination]').hidden = pairs.length < 2;
+      const fixed = dialog.querySelector('[data-fixed]');
+      fixed.hidden = pairs.length !== 1;
+      fixed.querySelector('strong').textContent = pairs.length === 1 ? pairs[0].name : '';
       dialog.querySelector('[data-link-panel]').hidden = !!pairs.length;
       drawRows();
     }
@@ -214,13 +218,12 @@
     form.onsubmit = event => {
       event.preventDefault();
       if (confirm.disabled) return;
-      try {
-        const ids = [...selected];
-        const expected = Object.fromEntries(ids.map(id => [id,original.get(id)]));
-        store.assignDatasetsToPair(ids,pairSelect.value,expected);
-        dialog.close('saved');
-        onSaved(ids.length,pairSelect.selectedOptions[0].text);
-      } catch (error) { report(error); }
+      const ids = [...selected];
+      const expected = Object.fromEntries(ids.map(id => [id,original.get(id)]));
+      try { store.assignDatasetsToPair(ids,pairSelect.value,expected); }
+      catch (error) { report(error); return; }
+      dialog.close('saved');
+      onSaved(ids.length,pairSelect.selectedOptions[0].text);
     };
     dialog.querySelector('[data-cancel]').onclick = () => dialog.close();
     dialog.addEventListener('close',() => {
