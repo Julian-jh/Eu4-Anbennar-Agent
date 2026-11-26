@@ -1,0 +1,5 @@
+{
+  "code-runner.executorMapByGlob": {
+    "start-frontend.bat": "cmd.exe /d /c call $fullFileName"
+  }
+}
