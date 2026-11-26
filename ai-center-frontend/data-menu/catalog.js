@@ -30,15 +30,15 @@
     const layer = select([['','All layers'],...layers.map(l => [l.code,l.code + ' · ' + l.name])],selection.layer);
     const count = node('span',null,'dm-catalog-count');
     count.setAttribute('aria-live','polite');
-    const crumb = node('nav',null,'dm-catalog-crumb');
-    crumb.setAttribute('aria-label','Folder path');
-    if (selected) {
-      crumb.append(iconButton('All datasets','back',() => onSelect(null)),node('span',scopeName));
-      content.append(crumb);
-    }
-    const controls = group('dm-catalog-filters',field('Search datasets',query),field('Warehouse layer',layer));
     const filters = node('section',null,'dm-filter-panel');
     filters.setAttribute('aria-label','Dataset filters');
+    if (selected) {
+      const crumb = node('nav',null,'dm-catalog-crumb');
+      crumb.setAttribute('aria-label','Folder path');
+      crumb.append(iconButton('All datasets','back',() => onSelect(null)),node('span',scopeName));
+      filters.append(crumb);
+    }
+    const controls = group('dm-catalog-filters',field('Search datasets',query),field('Warehouse layer',layer));
     const clearFilters = button('Clear filters',() => {
       query.value = layer.value = '';
       changeFilter();
