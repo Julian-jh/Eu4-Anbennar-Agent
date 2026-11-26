@@ -11,6 +11,7 @@
     const {node,field,select,button,iconButton,group,table,statusBadge} = ui;
     const content = node('section',null,'dm-catalog-contents');
     content.setAttribute('aria-label','Dataset catalog');
+    content.append(node('h1','Datasets','sr-only'));
     host.className = 'dm-catalog-browser';
     host.replaceChildren(content);
     window.DatasetFolderTree.render(config.rail,{...config,onSelect,afterMutation,tools:config.tools});

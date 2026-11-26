@@ -49,21 +49,21 @@
   <nav class="ac-secondary-nav" aria-label="Data sections" id="ac-sections"><span class="dm-rail-title" aria-hidden="true">Data workspace</span></nav>
   <aside id="ac-folder-rail" class="dm-folder-rail" aria-label="Dataset catalog navigation" hidden></aside>
   <main aria-label="AI Center work area">
-    <section class="ac-page" data-page="sources" aria-labelledby="ac-title-sources">
-      <div class="ac-pagehead"><div><h1 id="ac-title-sources">Sources</h1><p class="dm-subtitle" data-view="catalog">Connect a source and check which assets it can supply to your datasets.</p></div><button class="ac-btn ac-primary" type="button" data-view="catalog" data-act="add"><span aria-hidden="true">＋</span> Add source</button></div>
+    <section class="ac-page" data-page="sources" aria-label="Sources">
+      <h1 class="sr-only" data-view="catalog">Sources</h1>
+      <div class="ac-blockhead ac-asset-heading" data-view="connection preview"><h1 id="ac-source-name">Source</h1><span id="ac-source-type" class="ac-tag"></span></div>
       <div class="corpus-grid" data-view="catalog" role="group" aria-label="Filter sources by corpus">
         <button type="button" data-corpus="EU4" aria-pressed="false"><span class="corpus-icon eu4" aria-hidden="true">Ⅳ</span><span><strong>EU4</strong><small data-corpus-count="EU4"></small></span></button>
         <button type="button" data-corpus="Anbennar" aria-pressed="false"><span class="corpus-icon anbennar" aria-hidden="true">◇</span><span><strong>Anbennar</strong><small data-corpus-count="Anbennar"></small></span></button>
         <button type="button" data-corpus="Real History" aria-pressed="false"><span class="corpus-icon history" aria-hidden="true">§</span><span><strong>Real History</strong><small data-corpus-count="Real History"></small></span></button>
       </div>
       <div class="catalog-panel" data-view="catalog">
-        <div class="catalog-tools"><div class="ac-inline"><h2>Registered sources</h2><span id="ac-source-count" aria-live="polite"></span></div>
+        <div class="catalog-tools"><div class="ac-inline"><button class="ac-btn ac-primary" type="button" data-act="add"><span aria-hidden="true">＋</span> Add source</button><span id="ac-source-count" aria-live="polite"></span></div>
           <div class="catalog-filter"><label class="search-field"><span aria-hidden="true" class="search-icon"></span><input id="ac-search" type="search" aria-label="Search sources" placeholder="Search sources"></label><label class="ac-picker"><span class="sr-only">Source type</span><select id="ac-source-filter"><option value="all">All types</option><option value="database">Database</option><option value="url">API / URL</option><option value="file">File</option><option value="folder">Folder</option></select></label><button type="button" class="ac-link" id="ac-clear-filters" hidden>Clear filters</button></div></div>
         <div class="ac-sheet"><table class="ac-data ac-source-table"><thead><tr><th scope="col">Source</th><th scope="col">Corpus</th><th scope="col">Type</th><th scope="col">Last sync</th><th scope="col"><span class="sr-only">Open source</span></th></tr></thead><tbody id="ac-catalog"></tbody></table></div>
       </div>
       <div class="dm-tabs" data-view="connection preview" role="group" aria-label="Source views"><button type="button" data-source-view="catalog">All sources</button><button type="button" id="ac-tab-connection" data-source-view="connection">Connection</button><button type="button" id="ac-tab-preview" data-source-view="preview">Asset preview</button></div>
       <div class="ac-linebox" data-view="connection preview" aria-label="Selected source">
-        <div class="ac-blockhead"><h2 id="ac-source-name">Connection details</h2><span id="ac-source-type" class="ac-tag">PostgreSQL</span></div>
         <label class="ac-picker" id="ac-asset-picker" hidden>Asset <select id="ac-asset-select"></select></label>
         <div id="ac-source-details"></div>
       </div>
@@ -71,7 +71,7 @@
     </section>
     <section class="ac-page" data-page="lifecycle" aria-label="Data lifecycle" hidden><div id="ac-data-work"></div></section>
     <section class="ac-page" data-page="semantic" aria-labelledby="ac-title-semantic" hidden>
-      <div><h1 id="ac-title-semantic">Semantic layer</h1></div>
+      <h1 class="sr-only" id="ac-title-semantic">Semantic layer</h1>
       <div class="ac-linebox" data-view="overview"><div class="ac-blockhead"><h2>Country reigns</h2><span class="ac-tag" id="ac-sem-version">Published · v2</span></div>
         <dl class="ac-kv"><dt>Source</dt><dd>Reign register / public.reigns</dd><dt>Row grain</dt><dd>One ruler's recorded reign in one country.</dd><dt>Relationships</dt><dd>Country 1 → many Reigns · Ruler 1 → many Reigns</dd></dl>
       </div>
@@ -82,19 +82,19 @@
       </div>
     </section>
     <section class="ac-page" data-page="assistant" aria-labelledby="ac-title-assistant" hidden>
-      <div><h1 id="ac-title-assistant">AI configuration</h1></div>
+      <h1 class="sr-only" id="ac-title-assistant">AI configuration</h1>
       <div class="ac-linebox" data-view="configuration"><div class="ac-blockhead"><h2>Historical rulers</h2><span class="ac-tag" id="ac-version">Draft v4 · live v3</span></div>
         <div class="ac-cols"><label class="ac-field">Model profile<select id="ac-model"><option>Research standard</option><option>Research compact</option></select></label><label class="ac-field">Authorized semantic model<select id="ac-authorized"><option>Country reigns v2</option><option>None assigned</option></select></label></div>
         <div class="ac-checks"><h3>Allowed tools</h3><label><input id="ac-lookup" type="checkbox" checked>Look up a dated reign</label><label><input id="ac-cite" type="checkbox" checked>Attach a source citation</label></div>
         <div class="ac-info">Answer policy · Ask for a date when one is missing. Cite the register record supporting the answer.</div>
       </div>
-      <div class="ac-linebox" data-view="release"><h2>Release test</h2><p>Who ruled France on 11 November 1444?</p><div class="ac-actions"><button class="ac-btn ac-primary" type="button" data-act="test">Run test</button><button class="ac-btn" type="button" data-act="release" id="ac-release" disabled>Release draft</button></div><div class="ac-result" id="ac-test-result" role="status">The current draft is ready to test.</div></div>
+      <div class="ac-linebox" data-view="release"><h2>Historical rulers</h2><p>Who ruled France on 11 November 1444?</p><div class="ac-actions"><button class="ac-btn ac-primary" type="button" data-act="test">Run test</button><button class="ac-btn" type="button" data-act="release" id="ac-release" disabled>Release draft</button></div><div class="ac-result" id="ac-test-result" role="status">The current draft is ready to test.</div></div>
     </section>
     <section class="ac-page" data-page="runs" aria-labelledby="ac-title-runs" hidden>
-      <div><h1 id="ac-title-runs">Runs &amp; evaluations</h1></div>
-      <div class="ac-linebox" data-view="performance" hidden><h2>Sample run performance</h2><div id="ac-performance"></div></div>
+      <h1 class="sr-only" id="ac-title-runs">Runs &amp; evaluations</h1>
+      <div class="ac-linebox" data-view="performance" hidden><div id="ac-performance"></div></div>
       <div id="ac-run-view" class="ac-stack" data-view="runs">
-        <section id="ac-run-list" class="ac-stack"><h2>Run history</h2><div class="ac-box ac-sheet"><table class="ac-data">
+        <section id="ac-run-list" class="ac-stack"><div class="ac-box ac-sheet"><table class="ac-data" aria-label="Run history">
           <thead><tr><th scope="col">Run</th><th scope="col">Question</th><th scope="col">Assistant version</th><th scope="col">Status</th></tr></thead>
           <tbody id="ac-run-rows"></tbody></table></div></section>
         <section id="ac-run-detail" class="ac-stack" hidden><div class="ac-blockhead">
@@ -104,13 +104,13 @@
       <div id="ac-eval-view" class="ac-stack" data-view="evaluations" hidden><div class="ac-blockhead"><h2>Version comparison</h2><label class="ac-picker">Suite <select id="ac-suite"><option value="dated">Dated ruler queries</option><option value="missing">Missing dates</option></select></label></div><div class="ac-info" id="ac-eval-set"></div><div class="ac-box ac-sheet"><table class="ac-data"><thead><tr><th>Metric</th><th>v2</th><th>v3</th></tr></thead><tbody id="ac-eval-rows"></tbody></table></div><div class="ac-result" id="ac-eval-note"></div></div>
     </section>
     <section class="ac-page" data-page="api" aria-labelledby="ac-title-api" hidden>
-      <div><h1 id="ac-title-api">External APIs</h1></div>
+      <h1 class="sr-only" id="ac-title-api">External APIs</h1>
       <div class="ac-linebox" id="ac-api-in" data-view="connectors"><div class="ac-blockhead"><h2>Country directory</h2><span class="ac-tag">Outbound · read only</span></div><dl class="ac-kv"><dt>Operation</dt><dd><code>GET /countries/{tag}</code></dd><dt>Host</dt><dd><code>directory.example.test</code></dd><dt>Auth binding</dt><dd>Project credential alias · directory-reader</dd><dt>Consumer</dt><dd>Country directory source</dd></dl></div>
       <div class="ac-linebox" data-view="connectors"><h2>Test with sample data</h2><div class="ac-actions"><label class="ac-picker">Country tag <select id="ac-api-tag"><option>FRA</option><option>ENG</option></select></label><button type="button" class="ac-btn" data-act="lookup-country">Run sample lookup</button></div><output class="sample-output" id="ac-api-response" aria-live="polite"></output></div>
       <div class="ac-linebox" id="ac-api-out" data-view="published" hidden><div class="ac-blockhead"><h2>Historical rulers</h2><span class="ac-tag">Inbound · project scoped</span></div><dl class="ac-kv"><dt>Operation</dt><dd><code>POST /v1/assistants/historical-rulers/runs</code></dd><dt>Required scope</dt><dd><code>assistant:invoke</code></dd><dt>Input</dt><dd>Question, project context</dd><dt>Response</dt><dd>Run ID, answer and citations</dd><dt>Published version</dt><dd id="ac-live-api">v3</dd></dl></div>
     </section>
     <section class="ac-page" data-page="settings" aria-labelledby="ac-title-settings" hidden>
-      <div><h1 id="ac-title-settings">Workspace settings</h1></div>
+      <h1 class="sr-only" id="ac-title-settings">Workspace settings</h1>
       <div class="ac-linebox" data-view="defaults"><h2>EU4 &amp; Anbennar</h2><dl class="ac-kv"><dt>Environment</dt><dd>Local demo</dd><dt>Current role</dt><dd>Workspace owner</dd><dt>Default access</dt><dd>Explicit grants only</dd></dl><div><label class="ac-picker">Default corpus for new sources <select id="ac-default-corpus"><option>Real History</option><option>EU4</option><option>Anbennar</option></select></label></div><p id="ac-default-feedback" class="ac-muted" role="status"></p></div>
       <div class="ac-stack" data-view="roles"><div class="ac-blockhead"><h2>Role assignments</h2><label class="ac-picker">Scope <select id="ac-scope"><option>All scopes</option><option>Project</option><option>Dataset</option><option>Assistant</option></select></label></div><div class="ac-box ac-sheet"><table class="ac-data"><thead><tr><th>Principal</th><th>Resource scope</th><th>Effective access</th></tr></thead><tbody id="ac-roles"></tbody></table></div></div>
       <div class="ac-linebox" data-view="roles"><h2>Edit a grant</h2><div class="ac-cols"><label class="ac-field">Principal &amp; resource<select id="ac-principal"></select></label><label class="ac-field">Permission<select id="ac-permission"></select></label></div>

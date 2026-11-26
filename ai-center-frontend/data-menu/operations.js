@@ -67,7 +67,7 @@
         const subject = idOf(datasets, job.datasetId);
         const latest = data.jobs.find(attempt => attempt.retryOf === job.id);
         return `<section class="dm-panel dm-job-detail"><div class="dm-head">
-          <div><p class="dm-kicker">Job details</p><h2 tabindex="-1" data-focus-heading>${esc(job.id)}</h2></div>
+          <h2 tabindex="-1" data-focus-heading>${esc(job.id)}</h2>
           ${badge(job.status)}</div><dl class="dm-kv">
           <dt>Operation</dt><dd>${esc(jobLabels[job.type] || job.type)}</dd>
           <dt>Dataset</dt><dd>${esc(jobDataset(job) || '—')}</dd>
@@ -119,11 +119,11 @@
     }
     function jobsPage() {
       const canAddSchedule = state.tab === 'schedules' && !params.dataset && !params.new;
-      return `<header class="dm-head"><h1>Jobs</h1>${canAddSchedule ? button('Schedule a job','new-schedule','','dm-btn dm-primary') : ''}</header>
-        <div class="dm-tabs" role="group" aria-label="Job views">
+      return `<h1 class="sr-only">Jobs</h1><div class="dm-list-actions"><div class="dm-tabs" role="group" aria-label="Job views">
         ${[['runs', 'Job history'], ['schedules', 'Dataset schedules']].map(([key, label]) =>
           `<button type="button" class="dm-btn" ${flags('tab', key)} aria-pressed="${state.tab === key}">${label}</button>`).join('')}
-        </div>${state.tab === 'schedules' ? schedules() : runs()}`;
+        </div>${canAddSchedule ? button('Schedule a job','new-schedule','','dm-btn dm-primary') : ''}</div>
+        ${state.tab === 'schedules' ? schedules() : runs()}`;
     }
     function domainOptions(current) {
       return data.domains.map(domain => option(domain.id, domain.name, current)).join('');
@@ -203,13 +203,15 @@
           <td>${esc(storage || '—')}</td><td>${esc(displayTime(dataset.archivedAt))}</td>
           <td>${button('Restore', 'restore', dataset.id)}</td></tr>`;
       });
-      return `<header class="dm-head"><h1>Archive</h1></header><p class="dm-muted">Archiving retains data and settings, pauses jobs and disables retrieval. Restore a table to query its rows again. For documents, rebuild the index after restoring. Schedules can be enabled separately.</p><section class="dm-panel">
+      return `<h1 class="sr-only">Archive</h1><section class="dm-panel">
         <div class="dm-toolbar">${search('archive', 'Dataset, source or storage')}</div>
-        ${grid(['Dataset', 'Source', 'Storage', 'Archived', 'Actions'], rows, 'archive', rows.length ? 'No archived datasets match your search.' : 'No archived datasets.')}</section>`;
+        ${grid(['Dataset', 'Source', 'Storage', 'Archived', 'Actions'], rows, 'archive', rows.length ? 'No archived datasets match your search.' : 'No archived datasets.')}
+        <details class="dm-muted"><summary>What changes when I archive or restore a dataset?</summary><p>Archiving retains data and settings, pauses schedules and disables retrieval. Restored tables can be queried immediately. Rebuild a restored document index to enable retrieval. Schedules stay paused until you enable them.</p></details></section>`;
     }
 
     const wrapper = document.createElement('div');
     wrapper.className = 'dm-operations';
+    wrapper.dataset.opsView = area;
     wrapper.innerHTML = `<div class="dm-notice" role="status"${notice ? '' : ' hidden'}>${esc(notice)}</div>` +
       (area === 'taxonomy' ? taxonomyPage() : area === 'archive' ? archivePage() : jobsPage());
     host.replaceChildren(wrapper);

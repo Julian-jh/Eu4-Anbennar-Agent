@@ -311,8 +311,7 @@
       if (count) count.textContent = total + (total === 1 ? ' source' : ' sources');
     });
     $('source-filter').value = state.filter;
-    $('title-sources').textContent = state.view === 'catalog' ? 'Sources' : active.name;
-    $('source-name').textContent = state.view === 'preview' ? 'Source assets' : 'Connection details';
+    $('source-name').textContent = active.name;
     for (const tab of ['connection','preview']) {
       const button = $('tab-' + tab);
       if (state.view === tab) button.setAttribute('aria-current','page');
