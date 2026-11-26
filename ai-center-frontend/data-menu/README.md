@@ -16,13 +16,14 @@ Data                                 top navigation
 ├─ Jobs                               sidebar
 │  └─ Job history | Dataset schedules
 ├─ Taxonomy                           sidebar
-│  ├─ Hierarchy sidebar → Business domains → Subject areas
-│  └─ Asset assignments for the selected domain or subject
+│  ├─ Domains → Domain definitions, totals and assigned assets
+│  ├─ Subjects → Subject definitions, linked domains, totals and assigned assets
+│  └─ Matrix → Read-only domain-by-subject counts
 └─ Archive                            sidebar
    └─ Archived datasets → Restore
 ```
 
-The first three pages have tabs. In Taxonomy, select a domain in the hierarchy sidebar to see assets across all its subjects, or select a subject to see its assignments. Restore is a row action in Archive.
+In Taxonomy, define each domain and subject independently. Use the subject editor to choose its linked domains. **View assets** opens the assets contributing to a definition's totals. **Matrix** displays counts across both dimensions. Restore is a row action in Archive.
 
 **Sources** owns connection configuration and inventory. The database editor supports PostgreSQL, MySQL, SQL Server and SQLite. Network database profiles save the address, database and username. The password input is transient. Tests in this browser demo validate the profile using sample data. For a **Managed folder**, set a root and optionally a subdirectory, select allowed extensions and a parser, and enable recursion when required. File enumeration is simulated.
 
@@ -33,7 +34,7 @@ The first three pages have tabs. In Taxonomy, select a domain in the hierarchy s
 | Sources | Establish where data comes from and check connectivity. | Database, file, folder and URL connections, exposed assets and sync health | Connect, test, sync and preview. |
 | Datasets | Prepare warehouse records and build searchable collections. | Raw and detail layers, upstream assets, storage, transformations, schedules and indexes | Create a layer or dataset, materialize and export rows, explore lineage, schedule jobs, build retrieval and archive. |
 | Jobs | Investigate operations across sources and datasets. | Run history, failure details, retry attempts and schedule inventory | Filter by job type or status, inspect results, retry a failure or edit a dataset schedule within Jobs. |
-| Taxonomy | Classify assets under a common business vocabulary. | Domains, their child subject areas and source or dataset assignments | Define a domain, maintain its subjects and classify assets. Moving a subject moves its assigned assets with it. |
+| Taxonomy | Classify assets under a common business vocabulary. | Domains, reusable subjects, allowed combinations and asset assignments | Define domains and subjects in their respective tabs. Maintain links in the subject editor, classify assets in Asset assignments and inspect coverage in the read-only matrix. |
 | Archive | Find older collections and return them to active use. | Archived datasets, retained documents, configuration and storage references | Search the archive and restore a dataset. |
 
 ## 3. Try the lifecycle
@@ -41,7 +42,7 @@ The first three pages have tabs. In Taxonomy, select a domain in the hierarchy s
 1. Open **Sources → Anbennar mission notes → Connection**. Test the connection, sync the inventory and review its linked dataset names. Select **Datasets** from the sidebar and open **Mission reference** to see the source asset and storage destination. To try a different pairing, choose the **Create dataset** icon in the folder rail.
 2. On **Overview**, refresh the existing dataset or ingest a newly created raw dataset. Select the **Schedule** tab to choose an operation and recurrence. **Jobs → Dataset schedules** lists upcoming runs and offers **Schedule a job**. For a failure example, filter **Job history** by **Failed** and retry the sample mission refresh. The result identifies the new attempt. Open that attempt from the history list.
 3. For **Mission reference**, choose indexed documents under **Documents**. In **Retrieval**, configure parsing, chunking, embeddings and index type, then build and try a search. Changing the document selection makes the index **Rebuild required**. For **Reign detail**, use **Retrieval** to choose filter and return fields. Try `country_tag = FRA`, `start_date ≤ 1444-11-11`, and `end_date > 1444-11-11` to retrieve Charles VII and the source row. **Fields** shows the current table configuration.
-4. Open **Taxonomy**. **Governance & succession** is the broad domain. **Monarchs and reigns** is a subject within it. The **Reign register** source and **Monarchs and reigns** dataset are assigned to that subject. A corpus identifies which world supplied the material. A subject identifies what it describes.
+4. Open **Taxonomy → Domains** to see the source and dataset counts for **Governance & succession**. In **Subjects**, edit **Monarchs and reigns** and add a second linked domain. In **Matrix**, that intersection now shows an enabled link with zero assets until an assignment is made. The **Reign register** source keeps its original classification. Retiring a link in the subject editor also preserves its existing assignments.
 5. On a dataset's **Overview**, choose **Archive dataset**. Its data, source link, storage choice, configuration, classifications and history are retained. Its schedule stops. Archiving disables structured queries and withdraws document indexes. **Archive → Restore** makes retained table rows available for queries again. Restore and rebuild a document index to resume RAG. Re-enable schedules separately.
 
 The demo stores changes in the browser. The named storage locations represent logical destinations. Connection checks, imports and index builds operate on local sample records. Document searches match text in the last published index. Structured queries apply all configured conditions to current materialized rows and return the selected columns and source locator. Model and index selections demonstrate configuration and rebuild behavior. The local scheduler checks while the page is open and runs one catch-up job on reopening when a schedule is overdue.

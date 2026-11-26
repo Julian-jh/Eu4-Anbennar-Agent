@@ -62,7 +62,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       Object.fromEntries(object.fields.map((field, column) => [field,row[column] ?? null]))));
   }
   function datasetRecord(id, name, sourceId, asset, storage) {
-    return {id,name,sourceId,asset,storage,folderId:null,layer:'ODS',upstreamId:null,grain:'',keyField:'',subjectId:'',archived:false,archivedAt:null,
+    return {id,name,sourceId,asset,storage,folderId:null,layer:'ODS',upstreamId:null,grain:'',keyField:'',domainSubjectId:'',subjectId:'',archived:false,archivedAt:null,
       docs:[],config:{...defaults},snapshotDocs:[],buildSignature:null,indexedAt:null,indexStatus:'Not built',
       schedule:{type:'refresh',frequency:'Daily',enabled:false,nextAt:null}};
   }
@@ -151,7 +151,8 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         datasets.some(ds => ds.id === 'reign-detail' || ds.name.toLowerCase() === 'reign detail') ||
         !upstream.docs.every(doc => Object.keys(doc.values || {}).length)) return;
     const detail = datasetRecord('reign-detail','Reign detail',upstream.sourceId,upstream.asset,upstream.storage);
-    Object.assign(detail,{layer:'DWD',upstreamId:upstream.id,grain:'One reign per ruler and country',subjectId:upstream.subjectId});
+    Object.assign(detail,{layer:'DWD',upstreamId:upstream.id,grain:'One reign per ruler and country',
+      subjectId:upstream.subjectId,domainSubjectId:upstream.domainSubjectId || ''});
     detail.docs = materialize(upstream, '');
     initializeRetrieval(detail);
     datasets.push(detail);
@@ -169,6 +170,10 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       {id:'folder-missions',name:'Missions',parentId:'folder-game-systems'}
     ];
   }
+  function domainSubject(domainId, subjectId) {
+    const id = 'pair:' + encodeURIComponent(domainId) + ':' + encodeURIComponent(subjectId);
+    return {id,domainId,subjectId,active:true};
+  }
   function seed() {
     const stamp = now();
     const reigns = datasetRecord('reigns','Monarchs and reigns','register','public.reigns','warehouse');
@@ -179,10 +184,12 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       ds.docs = readDocuments(sourceFor(ds.sourceId),ds.asset);
       initializeRetrieval(ds);
     }
-    reigns.subjectId = 'monarchs';
+    const reignPair = domainSubject('governance','monarchs');
+    const missionsPair = domainSubject('gameplay','missions-and-events');
+    Object.assign(reigns,{domainSubjectId:reignPair.id,subjectId:reignPair.subjectId});
     reigns.schedule = window.DataSchedule.save(reigns.schedule,{type:'refresh',frequency:'Daily',time:'09:00',zone:'UTC',enabled:true},stamp);
-    missions.subjectId = 'missions-and-events';
-    old.subjectId = 'monarchs';
+    Object.assign(missions,{domainSubjectId:missionsPair.id,subjectId:missionsPair.subjectId});
+    Object.assign(old,{domainSubjectId:reignPair.id,subjectId:reignPair.subjectId});
     old.archived = true;
     old.archivedAt = daysFrom(stamp,-8);
     const jobs = [
@@ -191,9 +198,20 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       {id:'J-1001',type:'sync',sourceId:'register',status:'Succeeded',createdAt:daysFrom(stamp,-2),detail:'Discovered public.reigns and synchronized its source inventory.'}
     ];
     addSampleDetail(datasets);
-    return {datasets,jobs,storageLocations,folders:initialFolders(datasets),layers:defaultLayers.map(layer => ({...layer})),domains:[{id:'governance',name:'Governance & succession'},{id:'gameplay',name:'Game systems'}],
-      subjects:[{id:'monarchs',domainId:'governance',name:'Monarchs and reigns'},{id:'missions-and-events',domainId:'gameplay',name:'Missions and events'}],
-      sourceSubjects:{register:'monarchs',guides:'missions-and-events'},sourceOverrides:{},version:4};
+    return {datasets,jobs,storageLocations,folders:initialFolders(datasets),layers:defaultLayers.map(layer => ({...layer})),
+      domains:[
+        {id:'governance',name:'Governance & succession',description:'How a country is governed and how its leadership changes.'},
+        {id:'gameplay',name:'Game systems',description:'Rules that govern campaign objectives, events and their effects.'},
+        {id:'diplomacy',name:'Diplomacy & subjects',description:'Relationships between countries, including alliances, unions and subject states.'}
+      ],
+      subjects:[
+        {id:'monarchs',name:'Monarchs and reigns',description:'Monarchs, the countries they ruled and their periods of rule.'},
+        {id:'missions-and-events',name:'Missions and events',description:'Campaign objectives and events, including their requirements, choices and rewards.'},
+        {id:'dynastic-succession',name:'Dynastic succession',description:'How a crown passes between rulers and how its inheritance affects other countries.'}
+      ],
+      domainSubjects:[reignPair,missionsPair,domainSubject('governance','dynastic-succession'),domainSubject('diplomacy','dynastic-succession')],
+      sourceDomainSubjects:{register:reignPair.id,guides:missionsPair.id},
+      sourceSubjects:{register:reignPair.subjectId,guides:missionsPair.subjectId},sourceOverrides:{},version:5};
   }
   function legacyValues(doc, knownFields) {
     // The old text format concatenated the field name and value in source order.
@@ -229,6 +247,28 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     addSampleDetail(data.datasets);
     data.version = 2;
   }
+  function migrateTaxonomy(data) {
+    const validDomains = new Set(data.domains.map(domain => domain.id));
+    const previousParent = new Map();
+    for (const subject of data.subjects) {
+      if (validDomains.has(subject.domainId)) previousParent.set(subject.id,domainSubject(subject.domainId,subject.id));
+      delete subject.domainId;
+    }
+    data.domainSubjects = [...previousParent.values()];
+    for (const dataset of data.datasets) {
+      const pair = previousParent.get(dataset.subjectId);
+      dataset.domainSubjectId = pair?.id || '';
+      dataset.subjectId = pair?.subjectId || '';
+    }
+    data.sourceSubjects ||= {};
+    data.sourceDomainSubjects = {};
+    for (const [id,subjectId] of Object.entries(data.sourceSubjects)) {
+      const pair = previousParent.get(subjectId);
+      data.sourceDomainSubjects[id] = pair?.id || '';
+      data.sourceSubjects[id] = pair?.subjectId || '';
+    }
+    data.version = 5;
+  }
   let memory;
   let lastReadValue;
   let persistent = true;
@@ -245,7 +285,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         if (raw) {
           if (reuseUnchanged && memory && lastReadValue === raw) return memory;
           const data = JSON.parse(raw);
-          if ([1,2,3,4].includes(data.version) && Array.isArray(data.datasets) && Array.isArray(data.jobs)) {
+          if ([1,2,3,4,5].includes(data.version) && Array.isArray(data.datasets) && Array.isArray(data.jobs)) {
             if (data.version === 1) migrateWarehouse(data);
             if (data.version === 2) {
               data.folders = initialFolders(data.datasets);
@@ -256,6 +296,16 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
               data.datasets.forEach(initializeRetrieval);
               data.version = 4;
               upgraded = true;
+            }
+            if (data.version === 4) {
+              migrateTaxonomy(data);
+              upgraded = true;
+            }
+            for (const entry of [...data.domains,...data.subjects]) {
+              if (entry.description == null) {
+                entry.description = '';
+                upgraded = true;
+              }
             }
             memory = data;
             lastReadValue = raw;
@@ -293,6 +343,37 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
   }
   function unique(items,name,id) {
     if (items.some(i => i.id !== id && i.name.toLowerCase() === name.toLowerCase())) throw new Error('That name is already in use.');
+  }
+  function taxonomyDescription(value, previous = '') {
+    if (value === undefined) return previous;
+    if (typeof value !== 'string' || value.trim().length > 500) throw new Error('Enter a description of up to 500 characters.');
+    return value.trim();
+  }
+  function subjectMemberships(data, subjectId, domainIds) {
+    if (!Array.isArray(domainIds)) throw new Error('Select domains from the list.');
+    const selected = new Set(domainIds);
+    if (selected.size !== domainIds.length) throw new Error('Select each domain only once.');
+    for (const domainId of selected) existing(data.domains,domainId,'domain');
+
+    // Build the full replacement before saving the subject. Existing pair IDs stay valid after retirement.
+    const memberships = data.domainSubjects.map(pair => {
+      if (pair.subjectId !== subjectId) return pair;
+      const enabled = selected.delete(pair.domainId);
+      return enabled === pair.active ? pair : {...pair,active:enabled};
+    });
+    for (const domainId of selected) memberships.push(domainSubject(domainId,subjectId));
+    return memberships;
+  }
+  function assignAssetPair(data, kind, id, pairId) {
+    const pair = pairId ? existing(data.domainSubjects,pairId,'domain–subject pair') : null;
+    if (pair && !pair.active) throw new Error('Choose an active domain–subject pair.');
+    if (kind === 'dataset') {
+      Object.assign(active(data,id),{domainSubjectId:pair?.id || '',subjectId:pair?.subjectId || ''});
+    } else if (kind === 'source') {
+      existing(sources,id,'source');
+      data.sourceDomainSubjects[id] = pair?.id || '';
+      data.sourceSubjects[id] = pair?.subjectId || '';
+    } else throw new Error('Unknown asset type.');
   }
   function folderReference(data, id) {
     return id == null ? null : existing(data.folders,id,'folder').id;
@@ -757,30 +838,58 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     saveDomain(input) {
       return commit(data => {
         const name = named(input.name,'domain name');
+        const domain = input.id ? existing(data.domains,input.id,'domain') : null;
+        const description = taxonomyDescription(input.description,domain?.description);
         unique(data.domains,name,input.id);
-        if (input.id) { existing(data.domains,input.id,'domain').name = name; return input.id; }
+        if (domain) { Object.assign(domain,{name,description}); return domain.id; }
         const id = newId('domain');
-        data.domains.push({id,name});
+        data.domains.push({id,name,description});
         return id;
       });
     },
     saveSubject(input) {
       return commit(data => {
         const name = named(input.name,'subject area name');
-        existing(data.domains,input.domainId,'domain');
-        unique(data.subjects.filter(s => s.domainId === input.domainId),name,input.id);
-        if (input.id) {Object.assign(existing(data.subjects,input.id,'subject area'),{name,domainId:input.domainId}); return input.id;}
-        const id = newId('subject');
-        data.subjects.push({id,name,domainId:input.domainId});
+        const subject = input.id ? existing(data.subjects,input.id,'subject area') : null;
+        const description = taxonomyDescription(input.description,subject?.description);
+        // Legacy subjects in different domains may already share a display name.
+        if (!subject || subject.name.toLowerCase() !== name.toLowerCase()) unique(data.subjects,name,input.id);
+        const id = subject?.id || newId('subject');
+        let domainIds = input.domainIds;
+        if (domainIds === undefined && !subject && input.domainId) domainIds = [input.domainId];
+        const memberships = domainIds === undefined ? data.domainSubjects : subjectMemberships(data,id,domainIds);
+        if (subject) Object.assign(subject,{name,description});
+        else data.subjects.push({id,name,description});
+        data.domainSubjects = memberships;
         return id;
       });
     },
+    setDomainSubject(domainId,subjectId,enabled) {
+      return commit(data => {
+        existing(data.domains,domainId,'domain');
+        existing(data.subjects,subjectId,'subject area');
+        if (typeof enabled !== 'boolean') throw new Error('Choose whether the pair is active.');
+        const pair = data.domainSubjects.find(link => link.domainId === domainId && link.subjectId === subjectId);
+        if (pair) {
+          pair.active = enabled;
+          return pair.id;
+        }
+        if (!enabled) return null;
+        const link = domainSubject(domainId,subjectId);
+        data.domainSubjects.push(link);
+        return link.id;
+      });
+    },
+    assignAssetPair(kind,id,pairId) {
+      return commit(data => assignAssetPair(data,kind,id,pairId));
+    },
     assignAsset(kind,id,subjectId) {
       return commit(data => {
-        if (subjectId) existing(data.subjects,subjectId,'subject area');
-        if (kind === 'dataset') active(data,id).subjectId = subjectId || '';
-        else if (kind === 'source') {existing(sources,id,'source'); data.sourceSubjects[id] = subjectId || '';}
-        else throw new Error('Unknown asset type.');
+        if (!subjectId) return assignAssetPair(data,kind,id,'');
+        existing(data.subjects,subjectId,'subject area');
+        const links = data.domainSubjects.filter(pair => pair.subjectId === subjectId);
+        if (links.length !== 1 || !links[0].active) throw new Error('Select an active domain and subject together.');
+        return assignAssetPair(data,kind,id,links[0].id);
       });
     },
     editSource(id,input) {

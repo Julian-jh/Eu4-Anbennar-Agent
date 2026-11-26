@@ -232,8 +232,7 @@
     }
     root.querySelector('.ac-shell').classList.toggle('dm-layout',route.area === 'data');
     const rail = $('folder-rail');
-    rail.setAttribute('aria-label',view === 'taxonomy' ? 'Taxonomy navigation' : 'Dataset catalog navigation');
-    if (view !== 'datasets' && view !== 'taxonomy') {
+    if (view !== 'datasets') {
       rail.hidden = true;
       rail.replaceChildren();
     }

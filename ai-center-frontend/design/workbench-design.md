@@ -16,7 +16,7 @@ The workspace header contains five navigation icons. On hover or keyboard focus,
 | External APIs | Connected services · Published APIs | Configure outbound service calls and manage the assistant endpoints available to client applications. |
 | Workspace settings | Workspace defaults · Roles & permissions | Set project defaults and inspect or change effective access to a resource. |
 
-The selected menu item identifies the page. Begin the work area with its controls or content and reserve visible headings for a specific asset, task, or section. In **Data → Taxonomy**, place the domain and subject hierarchy beside the Data sidebar. Selecting a domain shows assignments across its subjects.
+The selected menu item identifies the page. Begin the work area with its controls or content and reserve visible headings for a specific asset, task, or section. In **Data → Taxonomy**, **Domains** and **Subjects** each maintain a vocabulary and show their own linked-definition, source and dataset counts. Asset assignments open inside those views. The subject editor maintains links to domains. The final **Matrix** tab provides a read-only view of the intersections.
 
 Switch peer menus through their shared navigation and peer tabs through their tab bar. Resource tabs keep the selected resource, so **Connection** and **Asset preview** show the same source. Choose a record from its collection and return to that collection to open a sibling. In a detail view, show related tables and retry attempts as names or identifiers. Inspecting a lineage node updates its metadata in place. Include area, destination and resource identity in a shareable URL, restore the selection on Back, and check the current user's permissions when opening the link.
 
