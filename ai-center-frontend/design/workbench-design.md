@@ -6,7 +6,7 @@ This is the product design for the visual administration frontend of the EU4 & A
 
 The header’s **Appearance** control applies to all five work areas, forms, dialogs and diagrams. Dark mode uses black, white and neutral gray. **System** follows the operating system. **Light** and **Dark** persist a browser preference across visits. The [frontend design requirements](../前端设计要求.md) govern navigation, catalog layout and appearance.
 
-The workspace header contains five navigation icons. Each shows its name on hover or keyboard focus. Open **Data → Sources** on first entry. Data uses a lifecycle sidebar. The other areas use a navigation row below the header. Mark the current destination visually and expose it to assistive technology. The [Data workspace design](../data-menu/README.md) defines the sidebar and asset-level workflows.
+The workspace header contains five navigation icons. On hover or keyboard focus, the icon rolls up and its name rises into the same button. The motion reverses on exit and is disabled when the user prefers reduced motion. Open **Data → Sources** on first entry. Data uses a lifecycle sidebar. The other areas use a navigation row below the header. Mark the current destination visually and expose it to assistive technology. The [Data workspace design](../data-menu/README.md) defines the sidebar and asset-level workflows.
 
 | Top row | Destinations, in display order | Work covered |
 |---|---|---|
