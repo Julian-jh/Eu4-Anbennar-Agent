@@ -39,6 +39,8 @@
     {id:'folder',name:'Country script archive',kind:'folder',format:'Folder',dataType:'table',access:'Snapshot',loc:'samples/history/countries',object:'*.txt',credential:'Workspace folder access',fields:['file_name','country_tag'],rows:[['FRA - France.txt','FRA'],['ENG - England.txt','ENG']]}
   ];
   sources.forEach((source,index) => {source.corpus = ['Real History','EU4','Real History','Anbennar'][index];});
+  const register = sources[0];
+  register.connection = window.SourceProfile.connection({...window.SourceProfile.databaseSettings(register),username:'atlas-reader'});
   sources.push({id:'guides',name:'Anbennar mission notes',kind:'url',format:'HTML',access:'Read only',corpus:'Anbennar',loc:'https://library.example.test/anbennar/missions',object:'mission-notes.html',credential:'Public sample',fields:['title','excerpt'],
     rows:[
       ['Mission prerequisites','Worked example of a mission requiring an earlier mission to be complete.'],
@@ -112,7 +114,7 @@
     if (!storageAvailable) return;
     try {
       localStorage.setItem(storageKey, JSON.stringify({
-        version:1, state, sources:sources.filter(s => !builtInIds.has(s.id)),
+        version:1, state, sources:sources.filter(s => !builtInIds.has(s.id)).map(window.SourceProfile.publicRecord),
         runs:runs.filter(r => !exampleRunIds.has(r.id)), grants:roles.map(r => r[3])
       }));
     } catch {
@@ -256,7 +258,8 @@
       const icon = node('span',shorthand,'source-icon');
       icon.setAttribute('aria-hidden','true');
       const identity = node('span',undefined,'source-identity');
-      identity.append(node('span',s.name,'source-name'),node('span',s.object,'source-id'));
+      const caption = s.kind === 'database' ? ((s.assets || [s]).length+' tables') : (s.object || 'No discovered assets');
+      identity.append(node('span',s.name,'source-name'),node('span',caption,'source-id'));
       button.append(icon,identity);
       td.append(button);
       const corpus = node('td');
@@ -304,13 +307,20 @@
     }
     const details = $('source-details');
     if (state.view === 'connection') {
-      details.replaceChildren(defList([[kinds[active.kind][0],active.loc],['Resource',active.object],['Corpus',active.corpus],['Access',active.access],['Credential alias',active.credential],['Connection mode','Local sample']]));
+      const entries = [[kinds[active.kind][0],active.loc],['Inventory',String((active.assets || [active]).length)+' assets'],['Corpus',active.corpus],['Access',active.access]];
+      if (active.kind === 'database' && active.format !== 'SQLite')
+        entries.push(['Username',active.connection?.username || 'Unspecified']);
+      if (active.folderPolicy) entries.push(['Scan subdirectory',active.folderPolicy.subdirectory || 'Root'],['Allowed files',active.folderPolicy.extensions.map(ext => '.'+ext).join(', ')],
+        ['Subdirectories',active.folderPolicy.recursive ? 'Included' : 'Excluded'],['Parser',active.folderPolicy.parser === 'manifest' ? 'File metadata' : 'Rows and document text']);
+      entries.push(['Connection mode','Local simulation']);
+      details.replaceChildren(defList(entries));
       window.DataSourceView.render($('source-ops'),{...dataContext(),source:active});
     } else if (asset.rows.length) {
       details.replaceChildren(buildTable(asset.fields,asset.rows));
       if (assets.length && assets.length < 2) details.prepend(node('p',asset.object,'ac-muted'));
     } else {
-      details.replaceChildren(node('p','No sample rows have been added to this source.','ac-muted'));
+      details.replaceChildren(node('p',active.folderPolicy && !assets.length ?
+        'No sample files match the saved directory policy.' : 'No sample rows have been added to this source.','ac-muted'));
     }
   }
   function drawMappings() {
@@ -469,8 +479,9 @@
     window.SourceEditor.open({defaultCorpus:state.defaultCorpus,onSave(record) {
       const key = globalThis.crypto?.randomUUID?.() ?? (Date.now().toString(36) + '-' + Math.random().toString(36).slice(2));
       const source = {...record,id:'local-' + key};
-      if (!validSource(source)) {notice('The source is missing required connection or preview data.');return;}
+      if (!validSource(source)) throw new Error('The source is missing required connection or preview data.');
       sources.push(source);
+      if (source.kind === 'database') lifecycle.sourceRun(source.id,'test');
       drawSources();
       remember();
       notice(source.name + ' added to Sources.');
@@ -495,7 +506,9 @@
     if (!snapshot || snapshot.version !== 1 || !snapshot.state || typeof snapshot.state !== 'object') return;
     const s = snapshot.state;
     for (const source of Array.isArray(snapshot.sources) ? snapshot.sources : []) {
-      if (validSource(source) && !sources.some(existing => existing.id === source.id)) sources.push(source);
+      if (validSource(source) && !sources.some(existing => existing.id === source.id)) {
+        try { sources.push(window.SourceProfile.publicRecord(source)); } catch { /* Ignore invalid saved settings. */ }
+      }
     }
     const customRuns = [];
     const runIds = new Set(exampleRunIds);
@@ -608,6 +621,12 @@
   });
   restore();
   lifecycle = window.createDataMenuStore(sources,notice);
+  for (const source of sources.filter(s => s.kind === 'database' && Object.hasOwn(window.SourceProfile.engines,s.format))) {
+    try {
+      const assets = window.SourceProfile.syncedAssets(source);
+      source.assets = window.SourceProfile.publicRecord({assets}).assets;
+    } catch { /* Keep the original inventory available while legacy connection settings need correction. */ }
+  }
   function checkScheduledJobs() {
     const check = () => {
       if (!lifecycle.tick()) return;

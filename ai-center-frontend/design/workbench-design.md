@@ -22,14 +22,14 @@ On narrow screens, wrap each navigation row independently. Keep the primary row 
 
 ## Source connections
 
-The list shows **source name, corpus, connection type and latest sync**. Its primary action is **Add source**. Opening a row shows its connection settings, health, linked datasets and asset previews. A successful connection test confirms reachability. A failed dataset refresh can then be investigated under **Jobs**.
+The list shows **source name, corpus, connection type and latest sync**. Its primary action is **Add source**. Opening a source shows connection settings, test history, linked datasets and inventory previews. In this frontend demo, tests validate the configuration against sample inventory. Live authentication and discovery require a connector running on a server with access to the source.
 
 | Step in Add source | Administrator action | Feedback |
 |---|---|---|
-| Connect | Choose Database, File, Folder, or URL. Set a name and corpus. For a database, select the driver and enter the host, database, and a credential reference. | Test access and show an actionable result. A draft can be saved while the administrator resolves a connection issue. |
-| Discover | Browse schemas, tables, views, files, or returned web content. Choose the assets to expose. | Show available objects and their types. A URL that returns a PDF uses the PDF parser. |
+| Connect | Choose Database, File, Managed folder or URL. For PostgreSQL, MySQL or SQL Server, configure host, port, database and username. SQLite takes a file path. | Show validation errors and label simulated tests. Password input is cleared when testing or closing the form. |
+| Discover | Register the database catalog. For a managed directory choose its root, optional subdirectory, extensions, recursion and parser. | Show inventory and sample content. The managed directory's metadata-only mode lists matching files. |
 | Preview | Inspect the selected asset and sample content. | Database previews show fields and sample rows. Document previews retain references to pages or sections. |
-| Save and use | Save the source and choose a source asset and storage location for an **ODS** dataset. Create a **DWD** dataset to consume materialized raw records. | **Schedule** sets recurring jobs. **Lineage** shows dependencies and document indexes. **Retrieval** configures RAG for documents, or filter fields and return columns for a structured table. |
+| Save and use | Save the connection in **Sources**. In **Datasets → Import tables**, choose one or more database tables, their raw layer, folder and storage. Create a **DWD** dataset to consume materialized raw records. | **Schedule** sets recurring jobs. **Lineage** shows dependencies and document indexes. **Retrieval** configures RAG for documents, or filter fields and return columns for a structured table. |
 
 Support empty sources, unreadable files, partial imports, expired credentials, and schema changes. Retain the last successful import when a later refresh fails. If a selected column disappears, identify affected mappings and assistants. For a live database, show the query time and surface the current schema error; cached previews must carry their capture time.
 

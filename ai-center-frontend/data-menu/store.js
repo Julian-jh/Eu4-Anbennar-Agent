@@ -378,8 +378,17 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
   function runSource(data,id,type,extra={}) {
     const s = existing(sources,id,'source');
     if (!['test','sync'].includes(type)) throw new Error('Unknown connection operation.');
-    const detail = type === 'test' ? 'Connection test passed against the local sample for ' + s.name + '.' :
-      'Synchronized ' + (s.assets || [s]).length + ' source asset(s). Refresh a linked dataset to import its documents.';
+    const profile = window.SourceProfile;
+    if (profile && s.kind === 'database') profile.connection(profile.databaseSettings(s));
+    if (profile && type === 'sync' && (s.kind === 'database' || s.folderPolicy)) {
+      const assets = profile.publicRecord({assets:profile.syncedAssets(s)}).assets;
+      const first = assets[0] || {object:'',fields:[],rows:[]};
+      const inventory = {assets,object:first.object,fields:first.fields,rows:first.rows};
+      Object.assign(s,inventory);
+      data.sourceOverrides[id] = {...data.sourceOverrides[id],...inventory};
+    }
+    const detail = type === 'test' ? 'Local simulation passed. No external connection was opened.' :
+      'Synchronized the local sample catalog: ' + (s.assets || [s]).length + ' asset(s).';
     return log(data,{type,sourceId:id,detail,...extra});
   }
   function submitJob(request) {
@@ -777,14 +786,26 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     editSource(id,input) {
       return commit(data => {
         const source = existing(sources,id,'source');
-        const patch = {name:named(input.name,'source name'),loc:named(input.loc,'location'),credential:named(input.credential,'credential alias')};
+        const base = {name:named(input.name,'source name'),loc:named(input.loc,'location'),credential:named(input.credential,'credential alias')};
+        const patch = window.SourceProfile && input.kind === source.kind ? window.SourceProfile.publicRecord({...input,...base}) : base;
+        delete patch.id;
         if (source.kind === 'url' && !/^https?:\/\/[^\s/]+(?:\/[^\s]*)?$/i.test(patch.loc)) throw new Error('Enter an HTTP or HTTPS address.');
+        if (patch.assets) {
+          const needed = data.datasets.find(ds => ds.sourceId === id && !ds.upstreamId && !patch.assets.some(a => a.object === ds.asset));
+          if (needed) throw new Error('Dataset “'+needed.name+'” uses '+needed.asset+'. Keep this asset available or register the new connection separately.');
+        }
         Object.assign(source,patch);
-        data.sourceOverrides[id] = patch;
+        data.sourceOverrides[id] = {...data.sourceOverrides[id],...patch};
+        if (input.kind === 'database') runSource(data,id,'test');
       });
     }
   };
   const state = read();
-  for (const s of sources) if (Object.hasOwn(state.sourceOverrides,s.id)) Object.assign(s,state.sourceOverrides[s.id]);
+  for (const s of sources) if (Object.hasOwn(state.sourceOverrides,s.id)) {
+    const patch = state.sourceOverrides[s.id];
+    // Older edits stored only a display address. Reconstruct its engine settings when opening the source.
+    if (s.kind === 'database' && patch.loc && !patch.connection) delete s.connection;
+    Object.assign(s,patch);
+  }
   return api;
 };

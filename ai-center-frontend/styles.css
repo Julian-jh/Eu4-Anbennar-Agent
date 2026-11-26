@@ -88,7 +88,7 @@ main { margin: 0 auto; padding: clamp(25px,3.8vw,56px) var(--gutter) 64px; min-w
 #ac-source-count,.ac-tag,.corpus-chip { font-size: .78rem; line-height: 1.4; font-weight: 550; }
 #ac-source-count,.ac-tag { border-radius: 20px; background: var(--soft); color: var(--forest); padding: 3px 8px; }
 .corpus-chip { background: #f0f2ec; color: #45594c; border-radius: 5px; padding: 4px 8px; }
-select,input[type=text],input[type=search],input[type=url],input[type=number],textarea { max-width: 100%; min-width: 0; border: 1px solid #becec2; background: var(--paper); border-radius: 6px; padding: 7px 10px; font-size: .93rem; }
+select,input[type=text],input[type=search],input[type=url],input[type=number],.se-field input:not([type]),.se-field input[type=password],textarea { max-width: 100%; min-width: 0; border: 1px solid #becec2; background: var(--paper); border-radius: 6px; padding: 7px 10px; font-size: .93rem; }
 select { min-height: 36px; }
 .search-field { position: relative; display: flex; align-items: center; }
 .search-field input { width: 190px; padding-left: 32px; }
@@ -140,6 +140,10 @@ input[type=checkbox],input[type=radio] { accent-color: var(--forest); }
 .se-type strong,.se-type small { display: block; }
 .se-type small,.se-summary,.se-asset small { font-size: .8rem; color: var(--muted); }
 .se-asset small { margin-left: auto; white-space: nowrap; }
+.se-asset span { min-width: 0; overflow-wrap: anywhere; }
+.se-folder { display: grid; gap: 12px; }
+.se-ext { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.se-ext label { display: inline-flex; align-items: center; gap: 4px; }
 .se-error { color: #9b3326; }
 .se-types { display: flex; flex-wrap: wrap; gap: 6px; }
 .se-type { display: flex; gap: 4px; align-items: center; border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; cursor: pointer; }
@@ -192,4 +196,5 @@ input[type=checkbox],input[type=radio] { accent-color: var(--forest); }
 }
 @media(pointer:coarse) {
   .ac-nav,.ac-subnav,.ac-btn,.ac-link,select,input[type=text],input[type=search],.se-type,.se-close { min-height: 44px; }
+  .se-field input { min-height: 44px; }
 }

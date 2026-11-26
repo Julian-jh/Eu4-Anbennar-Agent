@@ -91,7 +91,7 @@
 
 /* Inputs, buttons and their selected/disabled/focus states. */
 [data-theme="dark"] :is(select,input:not([type]),input[type="text"],input[type="search"],input[type="number"],
-  input[type="date"],input[type="time"],input[type="url"],textarea) {
+  input[type="date"],input[type="time"],input[type="url"],input[type="password"],textarea) {
   background-color: var(--paper); border-color: var(--control-border); color: var(--ink);
 }
 [data-theme="dark"] .se-field input:not([type]) {

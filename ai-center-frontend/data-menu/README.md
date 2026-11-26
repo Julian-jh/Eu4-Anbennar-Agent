@@ -23,6 +23,8 @@ Data                                 top navigation
 
 The first three pages have tabs. Taxonomy presents the hierarchy and its assignments on one page. Restore is a row action in Archive.
 
+**Sources** owns connection configuration and inventory. The database editor supports PostgreSQL, MySQL, SQL Server and SQLite. Network database profiles save the address, database and username. The password input is transient. Tests in this browser demo validate the profile using sample data. For a **Managed folder**, set a root and optionally a subdirectory, select allowed extensions and a parser, and enable recursion when required. File enumeration is simulated.
+
 ## 2. Submenu responsibilities
 
 | Submenu | Purpose | Managed objects | Primary actions |
