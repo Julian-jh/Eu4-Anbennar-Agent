@@ -230,13 +230,20 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     data.version = 2;
   }
   let memory;
+  let lastReadValue;
   let persistent = true;
-  function read() {
+  function persist(data) {
+    const raw = JSON.stringify(data);
+    localStorage.setItem(key,raw);
+    lastReadValue = raw;
+  }
+  function read(reuseUnchanged = false) {
     let upgraded = false;
     if (persistent) {
       try {
         const raw = localStorage.getItem(key);
         if (raw) {
+          if (reuseUnchanged && memory && lastReadValue === raw) return memory;
           const data = JSON.parse(raw);
           if ([1,2,3,4].includes(data.version) && Array.isArray(data.datasets) && Array.isArray(data.jobs)) {
             if (data.version === 1) migrateWarehouse(data);
@@ -251,6 +258,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
               upgraded = true;
             }
             memory = data;
+            lastReadValue = raw;
           }
         }
       } catch { persistent = false; notify('Browser storage is unavailable. Data changes will last for this session.'); }
@@ -258,7 +266,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     if (!memory || upgraded) {
       if (!memory) memory = seed();
       if (persistent) {
-        try { localStorage.setItem(key, JSON.stringify(memory)); }
+        try { persist(memory); }
         catch { persistent = false; notify('Sample data could only be opened for this session.'); }
       }
     }
@@ -268,7 +276,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     const data = read();
     const result = fn(data);
     if (persistent) {
-      try { localStorage.setItem(key,JSON.stringify(data)); }
+      try { persist(data); }
       catch { persistent = false; notify('Browser storage is full or unavailable. Data changes will last for this session.'); }
     }
     return result;
@@ -392,6 +400,38 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
   }
   const api = {
     snapshot:read,
+    previewMetadata(id) {
+      const data = read(true);
+      const ds = data.datasets.find(item => item.id === id);
+      if (!ds) return null;
+      const {name,layer,dataType,indexStatus,archived,sourceId,asset,upstreamId} = ds;
+      const source = sourceFor(sourceId);
+      const fields = sourceAsset(sourceId,asset)?.fields || [];
+      return {folders:data.folders,datasets:[{id,name,layer,dataType,indexStatus,archived,sourceId,asset,upstreamId,
+        sourceName:source?.name || sourceId,fields,recordCount:ds.docs.length}]};
+    },
+    previewPage(id,requested = 1) {
+      const ds = existing(read(true).datasets,id,'dataset');
+      const pageSize = 15;
+      const count = ds.docs.length;
+      const pageCount = Math.max(1,Math.ceil(count / pageSize));
+      const page = Math.max(1,Math.min(Number.isSafeInteger(requested) ? requested : 1,pageCount));
+      const offset = (page-1)*pageSize;
+      return {page,pageCount,offset,count,records:ds.docs.slice(offset,offset+pageSize)};
+    },
+    exportRecords(id) {
+      const ds = active(read(true),id);
+      return {datasetId:ds.id,name:ds.name,layer:ds.layer,grain:ds.grain || null,
+        sourceId:ds.sourceId,sourceAsset:ds.asset,upstreamId:ds.upstreamId || null,
+        records:ds.docs.map(doc => {
+          const record = {values:doc.values || {},sourceLocator:doc.locator ?? null};
+          if (ds.dataType === 'document' || !Object.keys(record.values).length) {
+            Object.assign(record,{id:doc.id,title:doc.title,text:doc.text});
+          }
+          return record;
+        })
+      };
+    },
     addFolder({name,parentId=null}) {
       return commit(data => {
         const folder = {id:newId('folder'), name:named(name,'folder name'), parentId:folderReference(data,parentId)};
@@ -433,7 +473,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     moveDataset:(id,folderId) => moveDatasets([id],folderId),
     fieldsFor(id) { return fieldsForRecord(existing(read().datasets,id,'dataset')); },
     fieldTypesFor(id) {
-      const ds = existing(read().datasets,id,'dataset');
+      const ds = existing(read(true).datasets,id,'dataset');
       return Object.fromEntries(fieldsForRecord(ds).map(field => [field,fieldType(ds,field)]));
     },
     setLookupFields(id,{filterFields,returnFields}) {
@@ -449,7 +489,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       });
     },
     queryRows(id,conditions=[],limit=20) {
-      const ds = existing(read().datasets,id,'dataset');
+      const ds = existing(read(true).datasets,id,'dataset');
       if (ds.archived) throw new Error('Restore this table before running a query.');
       if (ds.dataType !== 'table') throw new Error('Structured conditions apply only to tables.');
       if (!Array.isArray(conditions)) throw new Error('Supply a list of query conditions.');

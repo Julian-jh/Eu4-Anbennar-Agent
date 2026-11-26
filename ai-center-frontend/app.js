@@ -40,7 +40,26 @@
   ];
   sources.forEach((source,index) => {source.corpus = ['Real History','EU4','Real History','Anbennar'][index];});
   sources.push({id:'guides',name:'Anbennar mission notes',kind:'url',format:'HTML',access:'Read only',corpus:'Anbennar',loc:'https://library.example.test/anbennar/missions',object:'mission-notes.html',credential:'Public sample',fields:['title','excerpt'],
-    rows:[['Mission prerequisites','Worked example of a mission requiring an earlier mission to be complete.'],['Event rewards','Worked example of an event granting a reward after mission completion.']]});
+    rows:[
+      ['Mission prerequisites','Worked example of a mission requiring an earlier mission to be complete.'],
+      ['Event rewards','Worked example of an event granting a reward after mission completion.'],
+      ['Country scope','Record the country that a mission condition applies to.'],
+      ['Province scope','Record the province tested by an objective alongside its identifier.'],
+      ['Mission identifiers','Keep the script identifier beside the localized mission title.'],
+      ['Localization keys','Retain the key so a translated name can be traced to its source.'],
+      ['Source versions','Record which mod revision supplied a mission definition.'],
+      ['Branch requirements','List the conditions that distinguish alternative mission paths.'],
+      ['Territorial objectives','Keep each referenced province attached to the objective that names it.'],
+      ['Diplomatic objectives','Identify both countries when recording a diplomatic condition.'],
+      ['Economic objectives','Preserve the units and threshold from the source condition.'],
+      ['Reward duration','Keep temporary rewards and their durations together.'],
+      ['Event identifiers','Retain the referenced event ID when annotating a reward.'],
+      ['Event choices','Keep each choice attached to the effects described for that choice.'],
+      ['Tooltips','Keep player-facing descriptions alongside their script references.'],
+      ['Alternative conditions','Record when satisfying any one condition completes an objective.'],
+      ['Source evidence','Capture the file and section for each extracted rule.'],
+      ['Revision notes','Compare prerequisites and rewards when updating a mission record.']
+    ]});
   const builtInIds = new Set(sources.map(source => source.id));
   const fields = [['country_tag','Country.tag','Text'],['ruler_name','Ruler.name','Text'],['start_date','Reign.start','Date · inclusive'],['end_date','Reign.end','Date · exclusive'],['end_status','Reign.endStatus','Dated / open / unknown']];
   const roles = [['Project admins','Project','EU4 & Anbennar','Manage resources and releases'],['History analysts','Dataset','Reign register','Preview and query rows'],['Research readers','Assistant','Historical rulers','Invoke published release'],['Evaluation team','Assistant','Historical rulers','View runs and evaluations']];

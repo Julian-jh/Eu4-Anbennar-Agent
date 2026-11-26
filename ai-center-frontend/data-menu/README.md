@@ -11,7 +11,7 @@ Data                                 top navigation
 ├─ Datasets                           sidebar
 │  ├─ Folder rail → Create dataset | Manage layers | Folder tree
 │  ├─ Catalog → Current folder and dataset list
-│  └─ Dataset → Overview | Documents or Fields | Retrieval | Schedule | Lineage
+│  └─ Dataset → Overview | Data preview | Documents or Fields | Retrieval | Schedule | Lineage
 ├─ Jobs                               sidebar
 │  └─ Job history | Dataset schedules
 ├─ Taxonomy                           sidebar
@@ -43,6 +43,8 @@ The first three pages have tabs. Taxonomy presents the hierarchy and its assignm
 The demo stores changes in the browser. The named storage locations represent logical destinations. Connection checks, imports and index builds operate on local sample records. Document searches match text in the last published index. Structured queries apply all configured conditions to current materialized rows and return the selected columns and source locator. Model and index selections demonstrate configuration and rebuild behavior. The local scheduler checks while the page is open and runs one catch-up job on reopening when a schedule is overdue.
 
 ## Warehouse records and lineage
+
+Open **Data preview** on a dataset to inspect its stored contents. It requests up to 15 records or documents per page. Choose a page below the results to fetch it. Open a row for its complete values or a document for its text and source locator. **Download records** exports the entire active dataset. The bundled **Mission reference** sample has 18 entries, so page 2 starts at entry 16. In an existing workspace, **Overview → Refresh now** imports the updated sample.
 
 **Datasets → Folders** organizes the catalog into nested directories. Choose a parent to browse its active datasets and those in its subfolders. Search and layer filters apply within that scope. The catalog shows 25 results per page. Open **⋯** on **All datasets** to create a top-level folder. Each folder’s **⋯** menu lets you rename it, create a subfolder, move the branch or remove an empty folder. Archived datasets count as folder contents.
 

@@ -2,7 +2,7 @@
 (() => {
   'use strict';
 
-  const tabs = {overview:'Overview', documents:'Documents', retrieval:'Retrieval', schedule:'Schedule', lineage:'Lineage'};
+  const tabs = {overview:'Overview', preview:'Data preview', documents:'Documents', retrieval:'Retrieval', schedule:'Schedule', lineage:'Lineage'};
   const catalogSelection = {layer:'',query:'',page:1};
   const descriptions = {
     raw:'Raw datasets retain the selected source records, field names and evidence locations.',
@@ -134,7 +134,8 @@
   }
   function render(host,ctx) {
     const {store,sources,params,go} = ctx;
-    const snapshot = store.snapshot();
+    const preview = params.tab === 'preview' && params.dataset ? store.previewMetadata(params.dataset) : null;
+    const snapshot = preview || store.snapshot();
     const datasets = snapshot.datasets || [];
     const locations = snapshot.storageLocations || [];
     const layers = snapshot.layers || [];
@@ -207,6 +208,11 @@
     if (active.archived) view.append(node('p',active.dataType === 'table' ? 'Archived tables are read-only. Restore this dataset to query its retained rows.' :
       'Archived documents are read-only. Restore this dataset and rebuild its index to enable retrieval.','dm-notice'));
     if (currentTab === 'overview') drawOverview();
+    if (currentTab === 'preview') {
+      const container = node('div');
+      view.append(container);
+      window.DataPreviewView.render(container,{store,dataset:active},{node,button,group,table});
+    }
     if (currentTab === 'documents') drawDocuments();
     if (currentTab === 'retrieval') drawRetrieval();
     if (currentTab === 'schedule' || currentTab === 'lineage') {
@@ -341,48 +347,6 @@
       ]);
       const overview = panel('Dataset details',links);
       view.append(overview);
-      const records = active.docs.filter(doc => doc.values && typeof doc.values === 'object');
-      const rows = panel(detail ? 'Materialized detail records' : 'Materialized source records');
-      if (records.length) {
-        const fields = [...new Set(records.flatMap(doc => Object.keys(doc.values)))];
-        const tableHolder = node('div');
-        let expanded = false;
-        function drawRecords() {
-          const displayed = expanded ? records : records.slice(0,8);
-          const fmt = v => v == null ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v);
-          tableHolder.replaceChildren(table([...fields,'Source evidence'],displayed.map(doc => [
-            ...fields.map(f => fmt(doc.values[f])),doc.locator
-          ])));
-          if (records.length > 8) tableHolder.append(button(expanded ? 'Show first 8 rows' : 'Show all ' + records.length + ' rows',() => {
-            expanded = !expanded;drawRecords();
-          }));
-        }
-        drawRecords();
-        rows.append(tableHolder);
-        const recordActions = group('dm-actions');
-        if (!active.archived) recordActions.append(button('Download records',() => {
-          const exportData = {
-            datasetId:active.id,name:active.name,layer:active.layer,grain:active.grain || null,
-            sourceId:active.sourceId,sourceAsset:active.asset,upstreamId:active.upstreamId || null,
-            records:records.map(doc => ({values:doc.values,sourceLocator:doc.locator}))
-          };
-          const file = new Blob([JSON.stringify(exportData,null,2)],{type:'application/json;charset=utf-8'});
-          const url = URL.createObjectURL(file);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = active.layer.toLowerCase() + '-' + active.id + '.json';
-          link.hidden = true;
-          view.append(link);
-          link.click();
-          link.remove();
-          window.setTimeout(() => URL.revokeObjectURL(url),1000);
-        }));
-        if (recordActions.childElementCount) rows.append(recordActions);
-      } else {
-        rows.append(node('p',detail ? 'Materialize the dataset to preview its structured records and source evidence.' :
-          'Ingest the source asset to preview its fields, records and evidence locations.','dm-muted'));
-      }
-      view.append(rows);
       if (active.archived) return;
       const edit = node('details');
       edit.append(node('summary','Edit dataset details'));
