@@ -17,8 +17,8 @@
     window.DatasetFolderTree.render(config.rail,{...config,onSelect,afterMutation,tools:config.tools});
     const paths = new Map(folderChoices(folders));
     const scopeName = selected === 'unfiled' ? 'Unfiled' : selected ? paths.get(selected) : 'All datasets';
-    const scope = selected && selected !== 'unfiled' ? window.DatasetFolderTree.idsInSubtree(folders,selected) : null;
-    const subset = datasets.filter(d => !d.archived && (scope ? scope.has(d.folderId) : selected === 'unfiled' ? !d.folderId : true));
+    const inScope = window.DatasetFolderTree.scopeFilter(folders,selected);
+    const subset = datasets.filter(d => !d.archived && inScope(d));
     const inputNames = new Map(sources.map(s => [s.id,s.name]));
     const upstreamNames = new Map(datasets.map(d => [d.id,d.name]));
     const storageNames = new Map(locations.map(s => [s.id,s.name]));

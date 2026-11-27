@@ -32,7 +32,7 @@ The first seven domains provide a shared vocabulary. Populate each subject only 
 
 **Worked example.** Assign a record about a domestic heir to *Governance & succession* and a record about a personal union to *Diplomacy & subjects*. Tag both with *Dynastic succession*. Searching that subject returns both records. Adding the diplomacy filter returns the second.
 
-**Administration.** Define domains and subjects in separate tabs. A catalog asset can have one primary domain and several subjects. Either dimension can be empty. Domain folders list assets assigned to that area. Subject folders list assets tagged with that topic. Coverage counts come from the classifications in use.
+**Administration.** Define domains and subjects in separate tabs. A catalog asset can have one primary domain and several subjects. Either dimension can be empty. Domain folders list assets assigned to that area. Subject folders list assets tagged with that topic. The **Matrix** counts active datasets for each domain row and subject column, including zero counts. Count a dataset once per assigned subject. Use the **No domain** row and the **No subjects** column for missing assignments.
 
 **Current demo.** An existing *Game systems → Missions and events* catalog assignment becomes the domain *Game systems* and the subject *Missions and events*. A reviewer can change either independently. The proposed record-level model can use these asset classifications as defaults and refine them for individual missions and events.
 

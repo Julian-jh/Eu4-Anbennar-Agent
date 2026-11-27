@@ -38,6 +38,12 @@
     }
     return result;
   }
+  function scopeFilter(folders,id) {
+    if (!id) return () => true;
+    if (id === 'unfiled') return dataset => !dataset.folderId;
+    const ids = idsInSubtree(folders,id);
+    return dataset => ids.has(dataset.folderId);
+  }
   function node(tag,cls,text) {
     const el = document.createElement(tag);
     if (cls) el.className = cls;
@@ -89,11 +95,12 @@
   }
 
   function render(host,ctx) {
-    const {folders,datasets,store,selected,onSelect,afterMutation} = ctx;
+    const {folders,datasets,store,onSelect,afterMutation,browseOnly = false} = ctx;
+    let selected = ctx.selected;
     const children = childrenOf(folders);
     const byId = new Map(folders.map(f => [f.id,f]));
     const roots = children.get(null) || [];
-    const owner = host.closest('aside,main') || document;
+    const owner = browseOnly ? host : host.closest('aside,main') || document;
     const counts = new Map();
     let total = 0, unfiled = 0;
     for (const dataset of datasets) {
@@ -107,11 +114,12 @@
       }
     }
     readExpansion(roots);
+    const expanded = browseOnly ? new Set(expansion) : expansion;
     function revealParents(id) {
       const seen = new Set();
       for (let f = byId.get(id); f && f.parentId && !seen.has(f.id); f = byId.get(f.parentId)) {
         seen.add(f.id);
-        expansion.add(f.parentId);
+        expanded.add(f.parentId);
       }
     }
     revealParents(selected);
@@ -132,19 +140,24 @@
     header.append(title);
     if (ctx.tools) header.append(ctx.tools);
     host.replaceChildren(view);
-    view.append(header,nav,feedback,menu);
+    view.append(header,nav);
+    if (!browseOnly) view.append(feedback,menu);
     function focusSelection(id) {
       const row = Array.from(owner.querySelectorAll('.dm-ft-pick')).find(b => b.dataset.key === selectionKey(id));
       row?.focus();
     }
     function selectFolder(id) {
+      if (browseOnly) {
+        selected = id;
+        drawTree();
+      }
       onSelect(id);
       focusSelection(id);
     }
     function toggle(id,open,focusDisclosure = false) {
-      if (open) expansion.add(id);
-      else expansion.delete(id);
-      persistExpansion();
+      if (open) expanded.add(id);
+      else expanded.delete(id);
+      if (!browseOnly) persistExpansion();
       drawTree();
       if (!focusDisclosure) {focusSelection(id);return;}
       const disclosure = Array.from(nav.querySelectorAll('.dm-ft-toggle')).find(b => b.dataset.key === id);
@@ -156,7 +169,7 @@
       if (id === selected || (id == null && selected == null)) row.dataset.selected = 'true';
       let toggleButton;
       if (hasChildren) {
-        const open = expansion.has(id);
+        const open = expanded.has(id);
         toggleButton = button(open ? '▾' : '▸','dm-ft-toggle',() => toggle(id,!open,true));
         toggleButton.dataset.key = id;
         toggleButton.setAttribute('aria-label',(open ? 'Collapse ' : 'Expand ') + name);
@@ -175,7 +188,7 @@
       choice.setAttribute('aria-description',count + (count === 1 ? ' active dataset' : ' active datasets') + (hasChildren ? ', including subfolders' : ''));
       choice.append(glyph,nameEl,badge);
       row.append(choice);
-      if (id !== 'unfiled') {
+      if (!browseOnly && id !== 'unfiled') {
         const more = button('⋯','dm-ft-more',() => showMenu(more,id));
         more.dataset.key = selectionKey(id);
         more.title = 'Actions for ' + name;
@@ -190,7 +203,7 @@
           }
         });
         row.append(more);
-      } else row.append(node('span','dm-ft-spacer'));
+      } else if (!browseOnly) row.append(node('span','dm-ft-spacer'));
       li.append(row);
       return {li,toggleButton};
     }
@@ -209,7 +222,7 @@
           if (!sub.length) continue;
           const branch = node('ul','dm-ft-list');
           branch.id = instance + '-branch-' + (++branchIndex);
-          branch.hidden = !expansion.has(folder.id);
+          branch.hidden = !expanded.has(folder.id);
           toggleButton.setAttribute('aria-controls',branch.id);
           li.append(branch);
           if (!branch.hidden) appendFolders(branch,sub,level + 1);
@@ -231,12 +244,12 @@
         case 'End':items[items.length - 1].focus();break;
         case 'ArrowRight':
           if (!sub?.length) return;
-          if (!expansion.has(folder.id)) toggle(folder.id,true);
+          if (!expanded.has(folder.id)) toggle(folder.id,true);
           else focusSelection(sub[0].id);
           break;
         case 'ArrowLeft':
           if (!folder) return;
-          if (sub?.length && expansion.has(folder.id)) toggle(folder.id,false);
+          if (sub?.length && expanded.has(folder.id)) toggle(folder.id,false);
           else if (folder.parentId) focusSelection(folder.parentId);
           else return;
           break;
@@ -439,5 +452,5 @@
       else {input.focus();input.select();}
     }
   }
-  window.DatasetFolderTree = {render,path,idsInSubtree,folderOptions};
+  window.DatasetFolderTree = {render,path,idsInSubtree,scopeFilter,folderOptions};
 })();

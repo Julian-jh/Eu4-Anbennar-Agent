@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  function choicePicker(host,{trigger,title,context,searchLabel,choices,multiple,selected,emptyText,action,summary,canSave,save,onSaved}) {
+  function choicePicker(host,{trigger,title,context,searchLabel,choices,folders,multiple,selected,emptyText,action,summary,canSave,save,onSaved}) {
     const dialog = document.createElement('dialog');
     dialog.className = 'dm-bulk-dialog td-dataset-picker';
     dialog.setAttribute('aria-labelledby','td-picker-title');
@@ -24,13 +24,15 @@
     confirm.textContent = action;
     const count = form.querySelector('output'), alert = form.querySelector('[role=alert]');
     let visible = 50;
+    let scopedChoices = choices;
+    let folderId = null;
     function update() {
       count.textContent = summary(selected);
       confirm.disabled = !canSave(selected);
     }
     function draw() {
       const term = search.value.trim().toLowerCase();
-      const matches = choices.filter(item => item.search.includes(term));
+      const matches = scopedChoices.filter(item => item.search.includes(term));
       const rows = document.createDocumentFragment();
       for (const item of matches.slice(0,visible)) {
         const row = document.createElement('label');
@@ -62,7 +64,7 @@
       if (!matches.length) {
         const empty = document.createElement('p');
         empty.className = 'td-empty';
-        empty.textContent = choices.length ? 'No matches.' : emptyText;
+        empty.textContent = scopedChoices.length ? 'No matches.' : folderId ? 'No active datasets in this folder.' : emptyText;
         rows.append(empty);
       }
       list.replaceChildren(legend,rows);
@@ -85,7 +87,13 @@
       update();
     };
     search.oninput = () => { visible = 50; draw(); };
-    search.onkeydown = event => { if (event.key === 'Enter') event.preventDefault(); };
+    search.onkeydown = event => {
+      if (event.key === 'Enter') event.preventDefault();
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        dialog.close();
+      }
+    };
     form.onsubmit = event => {
       event.preventDefault();
       if (confirm.disabled) return;
@@ -103,6 +111,29 @@
       dialog.remove();
       if (dialog.returnValue !== 'saved' && trigger?.isConnected) trigger.focus();
     },{once:true});
+    if (folders) {
+      dialog.classList.add('td-folder-browser-dialog');
+      const browser = document.createElement('div'), rail = document.createElement('div'), results = document.createElement('div');
+      browser.className = 'td-folder-browser';
+      results.className = 'td-folder-results';
+      const path = document.createElement('h3');
+      path.className = 'td-scope-path';
+      path.textContent = 'All datasets';
+      results.append(path,search.closest('label'),list,more);
+      browser.append(rail,results);
+      form.prepend(browser);
+      window.DatasetFolderTree.render(rail,{
+        folders,datasets:choices,browseOnly:true,selected:null,
+        onSelect(id) {
+          folderId = id;
+          scopedChoices = id ? choices.filter(window.DatasetFolderTree.scopeFilter(folders,id)) : choices;
+          path.textContent = id === 'unfiled' ? 'Unfiled' : window.DatasetFolderTree.path(folders,id).join(' / ') || 'All datasets';
+          visible = 50;
+          draw();
+          list.scrollTop = 0;
+        }
+      });
+    }
     draw();
     host.append(dialog);
     dialog.showModal();
@@ -153,11 +184,11 @@
       const source = [sourceNames.get(ds.sourceId) || ds.sourceId,ds.asset].filter(Boolean).join(' / ');
       const location = [ds.layer,paths.get(ds.folderId) || 'Unfiled',source].filter(Boolean).join(' · ');
       const notes = [location,assigned ? 'Already assigned here' : (domain ? 'Domain · ' : 'Subjects · ') + classification];
-      return {id:ds.id,name:ds.name,notes,disabled:assigned,search:[ds.name,ds.id,location,classification].join(' ').toLowerCase()};
+      return {id:ds.id,name:ds.name,folderId:ds.folderId,notes,disabled:assigned,search:[ds.name,ds.id,location,classification].join(' ').toLowerCase()};
     }).sort((a,b) => a.name.localeCompare(b.name));
     choicePicker(host,{
       title:'Add datasets',context:(domain ? 'Domain' : 'Subject') + ' · ' + names.get(definition.id),searchLabel:'Find datasets',
-      choices,multiple:true,selected:new Set(),emptyText:'No active datasets available.',action:'Add datasets',trigger,
+      choices,folders:data.folders,multiple:true,selected:new Set(),emptyText:'No active datasets available.',action:'Add datasets',trigger,
       summary(selected) {
         const replaced = domain ? [...selected].filter(id => original.get(id)).length : 0;
         return selected.size + ' selected' + (replaced ? ' · ' + replaced + ' existing domain assignment' + (replaced === 1 ? '' : 's') + ' will be replaced.' : '');
