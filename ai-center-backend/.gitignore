@@ -1,0 +1,7 @@
+__pycache__/
+.pytest_cache/
+.venv/
+.eu4-sources/
+admin.token
+actors.json
+keys.json
