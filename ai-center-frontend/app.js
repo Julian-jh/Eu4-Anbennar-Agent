@@ -49,42 +49,11 @@
   }
   routes.set('connection',{area:'data',label:'Connection',page:'sources'});
   routes.set('preview',{area:'data',label:'Asset preview',page:'sources'});
-  const kinds = {
-    database:['Database address','DB'], url:['Endpoint URL','API'],
-    file:['File name','FILE'], folder:['Folder path','DIR']
-  };
   const corpora = ['EU4','Anbennar','Real History'];
-  const sources = [
-    {id:'register',name:'Reign register',kind:'database',format:'PostgreSQL',access:'Read only',loc:'archive.example.test:5432/atlas',object:'public.reigns',credential:'atlas-reader',fields:['country_tag','ruler_name','start_date','end_date','end_status'],rows:[['FRA','Charles VII','1422-10-21','1461-07-22','dated'],['FRA','Louis XI','1461-07-22','1483-08-30','dated']]},
-    {id:'directory',name:'Country directory',kind:'url',format:'REST / JSON',access:'Read only',loc:'https://directory.example.test/countries',object:'GET /countries/{tag}',credential:'directory-reader',fields:['country_tag','display_name'],rows:[['FRA','France'],['ENG','England']]},
-    {id:'names',name:'Country aliases',kind:'file',format:'CSV',access:'Snapshot',loc:'samples/country_aliases.csv',object:'country_aliases.csv',credential:'Workspace file access',fields:['country_tag','alias','language'],rows:[['FRA','France','en'],['FRA','法国','zh']]},
-    {id:'folder',name:'Country script archive',kind:'folder',format:'Folder',dataType:'table',access:'Snapshot',loc:'samples/history/countries',object:'*.txt',credential:'Workspace folder access',fields:['file_name','country_tag'],rows:[['FRA - France.txt','FRA'],['ENG - England.txt','ENG']]}
-  ];
-  sources.forEach((source,index) => {source.corpus = ['Real History','EU4','Real History','Anbennar'][index];});
-  const register = sources[0];
-  register.connection = window.SourceProfile.connection({...window.SourceProfile.databaseSettings(register),username:'atlas-reader'});
-  sources.push({id:'guides',name:'Anbennar mission notes',kind:'url',format:'HTML',access:'Read only',corpus:'Anbennar',loc:'https://library.example.test/anbennar/missions',object:'mission-notes.html',credential:'Public sample',fields:['title','excerpt'],
-    rows:[
-      ['Mission prerequisites','Worked example of a mission requiring an earlier mission to be complete.'],
-      ['Event rewards','Worked example of an event granting a reward after mission completion.'],
-      ['Country scope','Record the country that a mission condition applies to.'],
-      ['Province scope','Record the province tested by an objective alongside its identifier.'],
-      ['Mission identifiers','Keep the script identifier beside the localized mission title.'],
-      ['Localization keys','Retain the key so a translated name can be traced to its source.'],
-      ['Source versions','Record which mod revision supplied a mission definition.'],
-      ['Branch requirements','List the conditions that distinguish alternative mission paths.'],
-      ['Territorial objectives','Keep each referenced province attached to the objective that names it.'],
-      ['Diplomatic objectives','Identify both countries when recording a diplomatic condition.'],
-      ['Economic objectives','Preserve the units and threshold from the source condition.'],
-      ['Reward duration','Keep temporary rewards and their durations together.'],
-      ['Event identifiers','Retain the referenced event ID when annotating a reward.'],
-      ['Event choices','Keep each choice attached to the effects described for that choice.'],
-      ['Tooltips','Keep player-facing descriptions alongside their script references.'],
-      ['Alternative conditions','Record when satisfying any one condition completes an objective.'],
-      ['Source evidence','Capture the file and section for each extracted rule.'],
-      ['Revision notes','Compare prerequisites and rewards when updating a mission record.']
-    ]});
-  const builtInIds = new Set(sources.map(source => source.id));
+  // Local dataset pages have no connection catalog. Sources are managed through the API.
+  const sources = [];
+  const legacySourceNames = new Map();
+  let hasLegacySources = false;
   const fields = [['country_tag','Country.tag','Text'],['ruler_name','Ruler.name','Text'],['start_date','Reign.start','Date · inclusive'],['end_date','Reign.end','Date · exclusive'],['end_status','Reign.endStatus','Dated / open / unknown']];
   const roles = [['Project admins','Project','EU4 & Anbennar','Manage resources and releases'],['History analysts','Dataset','Reign register','Preview and query rows'],['Research readers','Assistant','Historical rulers','Invoke published release'],['Evaluation team','Assistant','Historical rulers','View runs and evaluations']];
   const permissions = {Project:['Manage resources and releases','View project','No access'],Dataset:['Preview and query rows','View metadata only','No access'],Assistant:['Invoke published release','View runs and evaluations','No access']};
@@ -96,7 +65,7 @@
   const exampleRunIds = new Set(runs.map(run => run.id));
   const storageKey = 'ai-center.workbench.v1';
   const state = {
-    view:'catalog', source:'register', asset:'', filter:'all', corpus:'', search:'', entity:'All entities', scope:'All scopes',
+    view:'catalog', entity:'All entities', scope:'All scopes',
     suite:'dated', activeRun:'', live:3, draft:4, tested:false, alias:'Sovereign', principal:1,
     date:'1444-11-11', validation:'', lastTest:'', result:'The current draft is ready to test.', defaultCorpus:'Real History',
     model:'Research standard', authorized:'Country reigns v2', lookup:true, cite:true,
@@ -136,7 +105,7 @@
     if (!storageAvailable) return;
     try {
       localStorage.setItem(storageKey, JSON.stringify({
-        version:1, state, sources:sources.filter(s => !builtInIds.has(s.id)).map(window.SourceProfile.publicRecord),
+        version:1, state,
         runs:runs.filter(r => !exampleRunIds.has(r.id)), grants:roles.map(r => r[3])
       }));
     } catch {
@@ -155,11 +124,8 @@
     output.textContent = message;
   }
   function currentHash() {
-    const params = new URLSearchParams(routes.get(state.view).page === 'lifecycle' ? dataParams : {});
-    if (['preview','connection'].includes(state.view)) {
-      params.set('source',state.source);
-      if (state.view === 'preview' && state.asset) params.set('asset',state.asset);
-    }
+    const page = routes.get(state.view).page;
+    const params = new URLSearchParams(['lifecycle','sources'].includes(page) ? dataParams : {});
     if (state.view === 'runs' && state.activeRun) params.set('run',state.activeRun);
     if (state.view === 'evaluations') params.set('suite',state.suite);
     const query = params.toString();
@@ -187,15 +153,11 @@
       return;
     }
     const params = new URLSearchParams(query);
-    if (['preview','connection'].includes(view) && params.has('source')) {
-      const id = params.get('source');
-      if (!sources.some(s => s.id === id)) {
-        navigate('catalog',true);
-        notice('This source is unavailable in this browser. Choose a registered source.');
-        return;
-      }
-      state.source = id;
-      state.asset = params.get('asset') || '';
+    const sourceRoute = ['preview','connection'].includes(view);
+    const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+    if (sourceRoute && !uuid.test(params.get('source') || '')) {
+      navigate('catalog',true);
+      return;
     }
     if (view === 'runs' && params.has('run')) {
       const id = params.get('run');
@@ -225,8 +187,12 @@
     const route = routes.get(view);
     if (!route) return;
     state.view = view;
+    const liveSources = route.page === 'sources';
+    $('workspace-mode').textContent = liveSources ? 'Sources workspace' : 'Demo workspace';
+    root.querySelector('.ac-person').hidden = liveSources;
     if (view === 'runs') state.activeRun = params.run || '';
-    dataParams = route.page === 'lifecycle' ? params : {};
+    dataParams = ['lifecycle','sources'].includes(route.page) ? params : {};
+    if (route.page !== 'sources') window.LiveSources.leave();
     if (view === 'datasets' && dataParams.tab === 'lineage' && !dataParams.dataset) {
       dataParams = {...dataParams};
       delete dataParams.tab;
@@ -260,90 +226,10 @@
     remember();
   }
   function drawSources() {
-    const records = lifecycle.snapshot();
-    const term = state.search.trim().toLowerCase();
-    const visible = sources.filter(s => (state.filter === 'all' || s.kind === state.filter)
-      && (!state.corpus || s.corpus === state.corpus)
-      && [s.name,s.corpus,s.format].some(value => value.toLowerCase().includes(term)));
-    const active = sources.find(s => s.id === state.source) || sources[0];
-    const catalog = $('catalog');
-    catalog.replaceChildren();
-    visible.forEach(s => {
-      const tr = node('tr');
-      tr.dataset.active = String(s === active);
-      tr.dataset.sourceRow = s.id;
-      const td = node('td');
-      const button = node('button',undefined,'ac-rowname source-cell');
-      button.type = 'button';
-      button.dataset.source = s.id;
-      button.setAttribute('aria-label','Open ' + s.name);
-      const shorthand = s.format.toUpperCase() === 'CSV' ? 'CSV' : kinds[s.kind][1];
-      const icon = node('span',shorthand,'source-icon');
-      icon.setAttribute('aria-hidden','true');
-      const identity = node('span',undefined,'source-identity');
-      const caption = s.kind === 'database' ? ((s.assets || [s]).length+' tables') : (s.object || 'No discovered assets');
-      identity.append(node('span',s.name,'source-name'),node('span',caption,'source-id'));
-      button.append(icon,identity);
-      td.append(button);
-      const corpus = node('td');
-      corpus.append(node('span',s.corpus,'corpus-chip'));
-      const action = node('td');
-      const arrow = node('span','→','ac-enter');
-      arrow.setAttribute('aria-hidden','true');
-      action.append(arrow);
-      const sync = records.jobs.find(j => j.sourceId === s.id && j.type === 'sync');
-      const lastSync = sync ? new Date(sync.createdAt).toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' · ' + sync.status : 'Never synced';
-      tr.append(td,corpus,node('td',s.format),node('td',lastSync),action);
-      catalog.append(tr);
+    window.LiveSources.render($('live-sources'),state.view,dataParams,{
+      go:(view,params = {}) => navigate(view,false,params),
+      defaultCorpus:state.defaultCorpus
     });
-    if (!visible.length) {
-      const row = node('tr'), cell = node('td','No sources match these filters.','ac-muted');
-      cell.colSpan = 5;
-      row.append(cell);
-      catalog.append(row);
-    }
-    if ($('search')) $('search').value = state.search;
-    if ($('source-count')) $('source-count').textContent = visible.length + (visible.length === 1 ? ' source' : ' sources');
-    if ($('clear-filters')) $('clear-filters').hidden = !state.search && !state.corpus && state.filter === 'all';
-    all('[data-corpus]').forEach(button => {
-      button.setAttribute('aria-pressed',String(state.corpus === button.dataset.corpus));
-      const count = button.querySelector('[data-corpus-count]');
-      const total = sources.filter(s => s.corpus === button.dataset.corpus).length;
-      if (count) count.textContent = total + (total === 1 ? ' source' : ' sources');
-    });
-    $('source-filter').value = state.filter;
-    $('source-name').textContent = active.name;
-    for (const tab of ['connection','preview']) {
-      const button = $('tab-' + tab);
-      if (state.view === tab) button.setAttribute('aria-current','page');
-      else button.removeAttribute('aria-current');
-    }
-    $('source-type').textContent = active.format;
-    const assets = Array.isArray(active.assets) ? active.assets : [];
-    const asset = assets.find(a => a.object === state.asset) || assets[0] || active;
-    state.asset = assets.length ? asset.object : '';
-    if ($('asset-picker')) $('asset-picker').hidden = state.view !== 'preview' || assets.length < 2;
-    if ($('asset-select')) {
-      $('asset-select').replaceChildren(...assets.map(a => new Option(a.object,a.object)));
-      $('asset-select').value = state.asset;
-    }
-    const details = $('source-details');
-    if (state.view === 'connection') {
-      const entries = [[kinds[active.kind][0],active.loc],['Inventory',String((active.assets || [active]).length)+' assets'],['Corpus',active.corpus],['Access',active.access]];
-      if (active.kind === 'database' && active.format !== 'SQLite')
-        entries.push(['Username',active.connection?.username || 'Unspecified']);
-      if (active.folderPolicy) entries.push(['Scan subdirectory',active.folderPolicy.subdirectory || 'Root'],['Allowed files',active.folderPolicy.extensions.map(ext => '.'+ext).join(', ')],
-        ['Subdirectories',active.folderPolicy.recursive ? 'Included' : 'Excluded'],['Parser',active.folderPolicy.parser === 'manifest' ? 'File metadata' : 'Rows and document text']);
-      entries.push(['Connection mode','Local simulation']);
-      details.replaceChildren(defList(entries));
-      window.DataSourceView.render($('source-ops'),{...dataContext(),source:active});
-    } else if (asset.rows.length) {
-      details.replaceChildren(buildTable(asset.fields,asset.rows));
-      if (assets.length && assets.length < 2) details.prepend(node('p',asset.object,'ac-muted'));
-    } else {
-      details.replaceChildren(node('p',active.folderPolicy && !assets.length ?
-        'No sample files match the saved directory policy.' : 'No sample rows have been added to this source.','ac-muted'));
-    }
   }
   function drawMappings() {
     $('entity').value = state.entity;
@@ -357,8 +243,10 @@
     $('sem-version').textContent = alias === 'Sovereign' ? 'Published · v2' : 'Preview draft · based on v2';
     const date = $('sem-date').value;
     state.date = date;
-    const match = sources[0].rows.find(row => row[0] === 'FRA' && row[2] <= date && (row[4] === 'open' || (row[4] === 'dated' && date < row[3])));
-    state.validation = match ? alias + ' of France on ' + date + ' · ' + match[1] + ' · Reign register.' : 'No confirmed reign covers ' + date + ' in the sample.';
+    const reigns = lifecycle.snapshot().datasets.find(dataset => dataset.id === 'reigns' && !dataset.archived);
+    const match = reigns?.docs.map(doc => doc.values).find(row => row?.country_tag === 'FRA'
+      && row.start_date <= date && (row.end_status === 'open' || row.end_status === 'dated' && date < row.end_date));
+    state.validation = match ? alias + ' of France on ' + date + ' · ' + match.ruler_name + ' · ' + reigns.name + '.' : 'No confirmed reign covers ' + date + ' in the sample.';
     $('sem-result').textContent = state.validation;
     drawMappings();
   }
@@ -441,10 +329,9 @@
       && typeof config.lookup === 'boolean' && typeof config.cite === 'boolean';
   }
   function lookupCountry() {
-    const source = sources.find(s => s.id === 'directory');
     const tag = $('api-tag').value;
-    const match = source.rows.find(record => record[0] === tag);
-    const response = match ? Object.fromEntries(source.fields.map((field,i) => [field,match[i]])) : {error:'Unknown country tag'};
+    const names = {FRA:'France',ENG:'England'};
+    const response = Object.hasOwn(names,tag) ? {country_tag:tag,display_name:names[tag]} : {error:'Unknown country tag'};
     $('api-response').textContent = JSON.stringify(response,null,2);
   }
   function drawAssistant() {
@@ -487,36 +374,6 @@
     drawRuns();
     drawAssistant();
   }
-  function selectSource(id,detail,asset = '') {
-    state.source = id;
-    state.asset = asset;
-    navigate(detail);
-    $('tab-' + detail)?.focus();
-  }
-  function addSource() {
-    if (!window.SourceEditor || typeof window.SourceEditor.open !== 'function') {
-      notice('The source editor could not be loaded. Reopen the application and try again.');
-      return;
-    }
-    window.SourceEditor.open({defaultCorpus:state.defaultCorpus,onSave(record) {
-      const key = globalThis.crypto?.randomUUID?.() ?? (Date.now().toString(36) + '-' + Math.random().toString(36).slice(2));
-      const source = {...record,id:'local-' + key};
-      if (!validSource(source)) throw new Error('The source is missing required connection or preview data.');
-      sources.push(source);
-      if (source.kind === 'database') lifecycle.sourceRun(source.id,'test');
-      drawSources();
-      remember();
-      notice(source.name + ' added to Sources.');
-    }});
-  }
-  function validSource(s) {
-    const isTable = a => a && Array.isArray(a.fields) && a.fields.every(f => typeof f === 'string')
-      && Array.isArray(a.rows) && a.rows.every(Array.isArray);
-    return s && typeof s === 'object' && typeof s.id === 'string' && s.id.startsWith('local-')
-      && Object.hasOwn(kinds,s.kind) && corpora.includes(s.corpus) && isTable(s)
-      && ['name','format','access','loc','object','credential'].every(k => typeof s[k] === 'string')
-      && (!s.assets || (Array.isArray(s.assets) && s.assets.every(a => isTable(a) && typeof a.object === 'string')));
-  }
   function restore() {
     let raw;
     try {raw = localStorage.getItem(storageKey);}
@@ -527,9 +384,10 @@
     catch {return;}
     if (!snapshot || snapshot.version !== 1 || !snapshot.state || typeof snapshot.state !== 'object') return;
     const s = snapshot.state;
-    for (const source of Array.isArray(snapshot.sources) ? snapshot.sources : []) {
-      if (validSource(source) && !sources.some(existing => existing.id === source.id)) {
-        try { sources.push(window.SourceProfile.publicRecord(source)); } catch { /* Ignore invalid saved settings. */ }
+    if (Object.hasOwn(snapshot,'sources')) {
+      hasLegacySources = true;
+      for (const item of Array.isArray(snapshot.sources) ? snapshot.sources : []) {
+        if (typeof item?.id === 'string' && typeof item.name === 'string') legacySourceNames.set(item.id,item.name);
       }
     }
     const customRuns = [];
@@ -549,15 +407,14 @@
       if (permissions[r[1]].includes(snapshot.grants[i])) r[3] = snapshot.grants[i];
     });
     const accepted = {
-      filter:['all',...Object.keys(kinds)],corpus:['',...corpora],defaultCorpus:corpora,entity:['All entities','Country','Ruler','Reign'],
+      defaultCorpus:corpora,entity:['All entities','Country','Ruler','Reign'],
       scope:['All scopes','Project','Dataset','Assistant'],suite:['dated','missing'],model:['Research standard','Research compact'],
       authorized:['Country reigns v2','None assigned'],date:['1444-11-11','1461-07-22','1600-01-01']
     };
     Object.keys(accepted).forEach(key => {if (accepted[key].includes(s[key])) state[key] = s[key];});
-    for (const key of ['asset','alias','search','validation','result','lastTest']) {
+    for (const key of ['alias','validation','result','lastTest']) {
       if (typeof s[key] === 'string') state[key] = s[key];
     }
-    if (sources.some(source => source.id === s.source)) state.source = s.source;
     if (Number.isInteger(s.principal) && roles[s.principal]) state.principal = s.principal;
     if (Number.isSafeInteger(s.live) && s.live >= 3 && [s.live,s.live + 1].includes(s.draft)) {
       state.live = s.live; state.draft = s.draft;
@@ -574,33 +431,18 @@
   }
   root.addEventListener('click',event => {
     const button = event.target.closest('button');
-    if (!button) {
-      const row = event.target.closest('[data-source-row]');
-      if (row) selectSource(row.dataset.sourceRow,'connection');
-      return;
-    }
-    if (!root.contains(button)) return;
+    if (!button || !root.contains(button) || button.closest('#ac-live-sources')) return;
     const d = button.dataset;
     if (d.area) {navigate(navigation[d.area][0][0]);return;}
     if (d.section) {navigate(d.section);return;}
-    if (d.sourceView && ['catalog','connection','preview'].includes(d.sourceView)) {
-      navigate(d.sourceView);
-      (button.closest('[hidden]') ? root.querySelector('[data-section][aria-current="page"]') : button).focus();
-      return;
-    }
-    if (d.source) {selectSource(d.source,'connection');return;}
     if (d.run) {navigate('runs',false,{run:d.run});$('run-heading').focus();return;}
-    if (d.corpus) {state.corpus = state.corpus === d.corpus ? '' : d.corpus;drawSources();}
-    else if (button.id === 'ac-clear-filters') {state.corpus = '';state.filter = 'all';state.search = '';drawSources();}
-    else {
-      switch (d.act) {
+    switch (d.act) {
         case 'back-to-runs': {
           const selected = state.activeRun;
           navigate('runs');
           all('[data-run]').find(control => control.dataset.run === selected)?.focus();
           return;
         }
-        case 'add': addSource();break;
         case 'lookup-country':lookupCountry();break;
         case 'test-semantic': testSemantic();break;
         case 'apply-grant': roles[state.principal][3] = $('permission').value;drawRoles();showGrant(true);break;
@@ -611,15 +453,12 @@
           state.publishedConfig = currentConfig();
           state.result = 'Published v' + state.live + '. The sample assistant API now points to this release.';
           drawAssistant();drawApi();break;
-      }
     }
     remember();
   });
   root.addEventListener('change',event => {
     const input = event.target;
     switch (input.id) {
-      case 'ac-asset-select':state.asset = input.value;navigate('preview');return;
-      case 'ac-source-filter': state.filter = input.value;drawSources();break;
       case 'ac-default-corpus':
         if (!corpora.includes(input.value)) return;
         state.defaultCorpus = input.value;
@@ -635,20 +474,10 @@
     }
     remember();
   });
-  root.addEventListener('input',event => {
-    if (event.target.id !== 'ac-search') return;
-    state.search = event.target.value;
-    drawSources();
-    remember();
-  });
   restore();
-  lifecycle = window.createDataMenuStore(sources,notice);
-  for (const source of sources.filter(s => s.kind === 'database' && Object.hasOwn(window.SourceProfile.engines,s.format))) {
-    try {
-      const assets = window.SourceProfile.syncedAssets(source);
-      source.assets = window.SourceProfile.publicRecord({assets}).assets;
-    } catch { /* Keep the original inventory available while legacy connection settings need correction. */ }
-  }
+  lifecycle = window.createDataMenuStore(sources,notice,legacySourceNames);
+  if (hasLegacySources) remember();
+  legacySourceNames.clear();
   function checkScheduledJobs() {
     const check = () => {
       if (!lifecycle.tick()) return;

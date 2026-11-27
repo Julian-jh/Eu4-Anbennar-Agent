@@ -1,9 +1,13 @@
-// The local demo keeps the source catalog in the workbench and dataset lifecycle records here.
-window.createDataMenuStore = function createDataMenuStore(sources, notify) {
+// The local dataset demo retains its materialized records independently of the server's Sources catalog.
+window.createDataMenuStore = function createDataMenuStore(sources, notify, legacySourceNames = new Map()) {
   const key = 'ai-center.data-menu.v1';
   const now = () => new Date().toISOString();
   const newId = prefix => prefix + '-' + (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2));
   const sourceFor = id => sources.find(source => source.id === id);
+  const historicalNames = new Map([
+    ['register','Reign register'],['directory','Country directory'],['names','Country aliases'],
+    ['folder','Country script archive'],['guides','Anbennar mission notes']
+  ]);
   const defaults = {parser:'Auto', chunkSize:512, chunkOverlap:64, embedding:'Multilingual', indexType:'Hybrid', topK:5, mode:'Hybrid'};
   const buildFields = ['parser','chunkSize','chunkOverlap','embedding','indexType'];
   const defaultLayers = [
@@ -70,7 +74,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       Object.fromEntries(object.fields.map((field, column) => [field,row[column] ?? null]))));
   }
   function datasetRecord(id, name, sourceId, asset, storage) {
-    return {id,name,sourceId,asset,storage,folderId:null,layer:'ODS',upstreamId:null,grain:'',keyField:'',domainId:'',subjectIds:[],archived:false,archivedAt:null,
+    return {id,name,sourceId,sourceName:sourceFor(sourceId)?.name || historicalNames.get(sourceId) || sourceId,asset,storage,folderId:null,layer:'ODS',upstreamId:null,grain:'',keyField:'',domainId:'',subjectIds:[],archived:false,archivedAt:null,
       docs:[],config:{...defaults},snapshotDocs:[],buildSignature:null,indexedAt:null,indexStatus:'Not built',
       schedule:{type:'refresh',frequency:'Daily',enabled:false,nextAt:null}};
   }
@@ -188,7 +192,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         datasets.some(ds => ds.id === 'reign-detail' || ds.name.toLowerCase() === 'reign detail') ||
         !upstream.docs.every(doc => Object.keys(doc.values || {}).length)) return;
     const detail = datasetRecord('reign-detail','Reign detail',upstream.sourceId,upstream.asset,upstream.storage);
-    Object.assign(detail,{layer:'DWD',upstreamId:upstream.id,grain:'One reign per ruler and country',
+    Object.assign(detail,{layer:'DWD',sourceName:upstream.sourceName,upstreamId:upstream.id,grain:'One reign per ruler and country',
       domainId:upstream.domainId || '',subjectIds:[...(upstream.subjectIds || [])]});
     if (upstream.subjectId) detail.subjectId = upstream.subjectId; // The v1 upgrade creates this example before taxonomy migration.
     detail.docs = materialize(upstream, '');
@@ -218,20 +222,43 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     const missions = datasetRecord('missions','Mission reference','guides','mission-notes.html','library');
     const old = datasetRecord('early-names','Country names · prior edition','names','country_aliases.csv','warehouse');
     const datasets = [reigns,missions,old];
-    for (const ds of datasets) {
-      ds.docs = readDocuments(sourceFor(ds.sourceId),ds.asset);
-      initializeRetrieval(ds);
+    function seedRecords(dataset, fields, rows) {
+      dataset.docs = rows.map((row, i) => documentFromValues('doc-' + (i + 1),dataset.asset + ' / ' + (i + 1),
+        Object.fromEntries(fields.map((field, column) => [field,row[column]]))));
+      initializeRetrieval(dataset);
     }
+    seedRecords(reigns,['country_tag','ruler_name','start_date','end_date','end_status'],[
+      ['FRA','Charles VII','1422-10-21','1461-07-22','dated'],['FRA','Louis XI','1461-07-22','1483-08-30','dated']
+    ]);
+    seedRecords(old,['country_tag','alias','language'],[['FRA','France','en'],['FRA','法国','zh']]);
+    seedRecords(missions,['title','excerpt'],[
+        ['Mission prerequisites','Worked example of a mission requiring an earlier mission to be complete.'],
+        ['Event rewards','Worked example of an event granting a reward after mission completion.'],
+        ['Country scope','Record the country that a mission condition applies to.'],
+        ['Province scope','Record the province tested by an objective alongside its identifier.'],
+        ['Mission identifiers','Keep the script identifier beside the localized mission title.'],
+        ['Localization keys','Retain the key so a translated name can be traced to its source.'],
+        ['Source versions','Record which mod revision supplied a mission definition.'],
+        ['Branch requirements','List the conditions that distinguish alternative mission paths.'],
+        ['Territorial objectives','Keep each referenced province attached to the objective that names it.'],
+        ['Diplomatic objectives','Identify both countries when recording a diplomatic condition.'],
+        ['Economic objectives','Preserve the units and threshold from the source condition.'],
+        ['Reward duration','Keep temporary rewards and their durations together.'],
+        ['Event identifiers','Retain the referenced event ID when annotating a reward.'],
+        ['Event choices','Keep each choice attached to the effects described for that choice.'],
+        ['Tooltips','Keep player-facing descriptions alongside their script references.'],
+        ['Alternative conditions','Record when satisfying any one condition completes an objective.'],
+        ['Source evidence','Capture the file and section for each extracted rule.'],
+        ['Revision notes','Compare prerequisites and rewards when updating a mission record.']
+    ]);
     Object.assign(reigns,{domainId:'governance',subjectIds:['monarchs']});
-    reigns.schedule = window.DataSchedule.save(reigns.schedule,{type:'refresh',frequency:'Daily',time:'09:00',zone:'UTC',enabled:true},stamp);
     Object.assign(missions,{domainId:'gameplay',subjectIds:['missions-and-events']});
     Object.assign(old,{domainId:'governance',subjectIds:['monarchs']});
     old.archived = true;
     old.archivedAt = daysFrom(stamp,-8);
     const jobs = [
       {id:'J-1003',type:'refresh',datasetId:missions.id,sourceId:'guides',status:'Failed',createdAt:daysFrom(stamp,-1),detail:'The sample source timed out. The previous documents were retained. Retry to run the refresh again.'},
-      {id:'J-1002',type:'refresh',datasetId:reigns.id,sourceId:'register',status:'Succeeded',createdAt:daysFrom(stamp,-1),detail:'Refreshed two structured reign records.'},
-      {id:'J-1001',type:'sync',sourceId:'register',status:'Succeeded',createdAt:daysFrom(stamp,-2),detail:'Discovered public.reigns and synchronized its source inventory.'}
+      {id:'J-1002',type:'refresh',datasetId:reigns.id,sourceId:'register',status:'Succeeded',createdAt:daysFrom(stamp,-1),detail:'Refreshed two structured reign records.'}
     ];
     addSampleDetail(datasets);
     return {datasets,jobs,storageLocations:storageLocations.map(storageProfile.upgrade),folders:initialFolders(datasets),layers:defaultLayers.map(layer => ({...layer})),
@@ -245,8 +272,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         {id:'missions-and-events',name:'Missions and events',description:'Campaign objectives and events, including their requirements, choices and rewards.'},
         {id:'dynastic-succession',name:'Dynastic succession',description:'How a crown passes between rulers and how its inheritance affects other countries.'}
       ],
-      sourceDomainIds:{register:'governance',guides:'gameplay'},
-      sourceSubjectIds:{register:['monarchs'],guides:['missions-and-events']},sourceOverrides:{},version:9};
+      sourceDomainIds:{},sourceSubjectIds:{},version:10};
   }
   function legacyValues(doc, knownFields) {
     // The old text format concatenated the field name and value in source order.
@@ -330,6 +356,20 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     data.version = 9;
   }
   let memory;
+  function retireLocalSources(data) {
+    for (const ds of data.datasets) {
+      if (ds.sourceId) ds.sourceName ||= data.sourceOverrides?.[ds.sourceId]?.name || legacySourceNames.get(ds.sourceId)
+        || sourceFor(ds.sourceId)?.name || historicalNames.get(ds.sourceId) || ds.sourceId;
+    }
+    for (const assignments of [data.sourceDomainIds,data.sourceSubjectIds]) {
+      for (const id of Object.keys(assignments || {})) {
+        if (!sourceFor(id) && (historicalNames.has(id) || id.startsWith('local-'))) delete assignments[id];
+      }
+    }
+    delete data.sourceOverrides;
+    data.jobs = data.jobs.filter(job => job.datasetId || job.deletedDatasetId || !['sync','test'].includes(job.type));
+    data.version = 10;
+  }
   let lastReadValue;
   let persistent = true;
   function persist(data) {
@@ -345,7 +385,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         if (raw) {
           if (reuseUnchanged && memory && lastReadValue === raw) return memory;
           const data = JSON.parse(raw);
-          if ([1,2,3,4,5,6,7,8,9].includes(data.version) && Array.isArray(data.datasets) && Array.isArray(data.jobs)) {
+          if ([1,2,3,4,5,6,7,8,9,10].includes(data.version) && Array.isArray(data.datasets) && Array.isArray(data.jobs)) {
             if (data.version === 1) migrateWarehouse(data);
             if (data.version === 2) {
               data.folders = initialFolders(data.datasets);
@@ -382,6 +422,10 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
             }
             if (data.version === 8) {
               migrateIndependentClassification(data);
+              upgraded = true;
+            }
+            if (data.version === 9) {
+              retireLocalSources(data);
               upgraded = true;
             }
             for (const entry of [...data.domains,...data.subjects]) {
@@ -510,7 +554,9 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     } else if (['ingest','refresh'].includes(type)) {
       const isDetail = layerFor(data,ds.layer).kind === 'detail';
       const upstream = isDetail && data.datasets.find(item => item.id === ds.upstreamId);
-      const docs = isDetail ? materialize(upstream, ds.keyField) : readDocuments(existing(sources,ds.sourceId,'source'),ds.asset);
+      const source = sourceFor(ds.sourceId);
+      if (!isDetail && !source) throw new Error('The original source is unavailable. This dataset still contains its last materialized records.');
+      const docs = isDetail ? materialize(upstream, ds.keyField) : readDocuments(source,ds.asset);
       const selection = new Map(ds.docs.map(d => [d.id,d.included]));
       ds.docs = docs.map(d => ({...d,included:selection.get(d.id) ?? true}));
       if (ds.dataType === 'table') {
@@ -526,27 +572,10 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
     } else throw new Error('Unknown dataset job.');
     return log(data,{type,datasetId:id,sourceId:ds.sourceId,detail,...extra});
   }
-  function runSource(data,id,type,extra={}) {
-    const s = existing(sources,id,'source');
-    if (!['test','sync'].includes(type)) throw new Error('Unknown connection operation.');
-    const profile = window.SourceProfile;
-    if (profile && s.kind === 'database') profile.connection(profile.databaseSettings(s));
-    if (profile && type === 'sync' && (s.kind === 'database' || s.folderPolicy)) {
-      const assets = profile.publicRecord({assets:profile.syncedAssets(s)}).assets;
-      const first = assets[0] || {object:'',fields:[],rows:[]};
-      const inventory = {assets,object:first.object,fields:first.fields,rows:first.rows};
-      Object.assign(s,inventory);
-      data.sourceOverrides[id] = {...data.sourceOverrides[id],...inventory};
-    }
-    const detail = type === 'test' ? 'Local simulation passed. No external connection was opened.' :
-      'Synchronized the local sample catalog: ' + (s.assets || [s]).length + ' asset(s).';
-    return log(data,{type,sourceId:id,detail,...extra});
-  }
   function submitJob(request) {
     let failed;
     const jobId = commit(data => {
-      const {datasetId,sourceId,type,extra} = request(data);
-      if (!datasetId) return runSource(data,sourceId,type,extra);
+      const {datasetId,type,extra} = request(data);
       const ds = active(data,datasetId);
       try { return runDataset(data,ds.id,type,extra); }
       catch (err) {
@@ -657,11 +686,11 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       if (!ds) return null;
       const {name,layer,dataType,indexStatus,archived,sourceId,asset,upstreamId} = ds;
       const source = sourceFor(sourceId);
-      const fields = sourceAsset(sourceId,asset)?.fields || [];
+      const fields = fieldsForRecord(ds);
       const lookup = ds.dataType === 'table' ? {filterFields:[...ds.lookup.filterFields],
         returnFields:[...ds.lookup.returnFields],indexedFields:[...ds.lookup.indexedFields]} : undefined;
       return {folders:data.folders,datasets:[{id,name,layer,dataType,indexStatus,archived,sourceId,asset,upstreamId,
-        sourceName:source?.name || sourceId,fields,lookup,recordCount:ds.docs.length}]};
+        sourceName:source?.name || ds.sourceName || sourceId,fields,lookup,recordCount:ds.docs.length}]};
     },
     previewPage(id,requested = 1) {
       const ds = existing(read(true).datasets,id,'dataset');
@@ -680,7 +709,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       const selected = selectedDatasets(data,ids);
       const datasets = selected.map(ds => {
         const item = exportRecordSet(ds);
-        return {...item,dataType:ds.dataType,recordCount:ds.docs.length,sourceName:sourceFor(ds.sourceId)?.name || ds.sourceId,
+        return {...item,dataType:ds.dataType,recordCount:ds.docs.length,sourceName:sourceFor(ds.sourceId)?.name || ds.sourceName || ds.sourceId,
           folderId:ds.folderId || null,storage:ds.storage,fields:fieldsForRecord(ds)};
       });
       return {formatVersion:1,exportedAt:now(),datasetCount:datasets.length,datasets};
@@ -850,8 +879,9 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         existing(data.storageLocations,storage,'storage location');
         folderId = folderReference(data,folderId);
         const detail = layerFor(data, layer).kind === 'detail';
+        let upstream;
         if (detail) {
-          const upstream = active(data,upstreamId);
+          upstream = active(data,upstreamId);
           if (layerFor(data, upstream.layer).kind !== 'raw') throw new Error('Choose an upstream dataset in a raw warehouse layer.');
           grain = named(grain,'row grain for the detail dataset');
           if (keyField && !fieldsForRecord(upstream).includes(keyField)) throw new Error('Choose a key field from the upstream dataset.');
@@ -861,7 +891,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         const ds = datasetRecord(newId('dataset'),name,sourceId,asset,storage);
         ds.layer = layer;
         ds.folderId = folderId;
-        if (detail) Object.assign(ds,{upstreamId,grain,keyField});
+        if (detail) Object.assign(ds,{sourceName:upstream.sourceName || ds.sourceName,upstreamId,grain,keyField});
         initializeRetrieval(ds);
         data.datasets.unshift(ds);
         return ds.id;
@@ -901,7 +931,6 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
       });
     },
     run:(id,type) => submitJob(() => ({datasetId:id,type})),
-    sourceRun:(id,type) => commit(data => runSource(data,id,type)),
     retry(id) {
       return submitJob(data => {
         const job = existing(data.jobs,id,'job');
@@ -1017,29 +1046,7 @@ window.createDataMenuStore = function createDataMenuStore(sources, notify) {
         return changed.length;
       });
     },
-    editSource(id,input) {
-      return commit(data => {
-        const source = existing(sources,id,'source');
-        const base = {name:named(input.name,'source name'),loc:named(input.loc,'location'),credential:named(input.credential,'credential alias')};
-        const patch = window.SourceProfile && input.kind === source.kind ? window.SourceProfile.publicRecord({...input,...base}) : base;
-        delete patch.id;
-        if (source.kind === 'url' && !/^https?:\/\/[^\s/]+(?:\/[^\s]*)?$/i.test(patch.loc)) throw new Error('Enter an HTTP or HTTPS address.');
-        if (patch.assets) {
-          const needed = data.datasets.find(ds => ds.sourceId === id && !ds.upstreamId && !patch.assets.some(a => a.object === ds.asset));
-          if (needed) throw new Error('Dataset “'+needed.name+'” uses '+needed.asset+'. Keep this asset available or register the new connection separately.');
-        }
-        Object.assign(source,patch);
-        data.sourceOverrides[id] = {...data.sourceOverrides[id],...patch};
-        if (input.kind === 'database') runSource(data,id,'test');
-      });
-    }
   };
-  const state = read();
-  for (const s of sources) if (Object.hasOwn(state.sourceOverrides,s.id)) {
-    const patch = state.sourceOverrides[s.id];
-    // Older edits stored only a display address. Reconstruct its engine settings when opening the source.
-    if (s.kind === 'database' && patch.loc && !patch.connection) delete s.connection;
-    Object.assign(s,patch);
-  }
+  read();
   return api;
 };

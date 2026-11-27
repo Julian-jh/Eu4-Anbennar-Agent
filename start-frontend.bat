@@ -1,5 +1,9 @@
 @echo off
 setlocal
+if exist "%~dp0ai-center-backend\.venv\Scripts\python.exe" (
+    "%~dp0ai-center-backend\.venv\Scripts\python.exe" "%~dp0scripts\serve_frontend.py" %*
+    goto finished
+)
 py -3 -c "import sys" >nul 2>&1
 if not errorlevel 1 (
     py -3 "%~dp0scripts\serve_frontend.py"

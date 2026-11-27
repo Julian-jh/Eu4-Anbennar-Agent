@@ -1,0 +1,32 @@
+#ac-live-sources { min-width: 0; }
+.ls-page, .ls-form, .ls-results, .ls-panel, .ls-history { display: grid; gap: 14px; min-width: 0; }
+.ls-page { gap: 20px; }
+.ls-page h2, .ls-page h3, .ls-signin h2 { margin: 0; }
+.ls-bar, .ls-heading, .ls-filters, .ls-check, .ls-choices { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ls-bar { justify-content: space-between; }
+.ls-filters { align-items: end; padding-bottom: 15px; border-bottom: 1px solid var(--line); }
+.ls-filters .ac-field { min-width: min(13rem, 100%); }
+.ls-panel + .ls-panel { border-top: 1px solid var(--line); padding-top: 16px; }
+.ls-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px 20px; }
+.ls-form { max-width: 860px; }
+.ls-form fieldset { min-width: 0; margin: 0; padding: 0; border: 0; display: grid; gap: 14px; }
+.ls-check { width: fit-content; gap: 7px; }
+.ls-signin { display: grid; gap: 14px; max-width: 30rem; }
+.ls-signin p, .ls-form p, .ls-empty p { margin: 0; }
+#ac-live-sources input[type="password"] { min-width: 0; width: 100%; padding: 7px 10px; border: 1px solid var(--control-border); background: var(--paper); color: var(--ink); border-radius: 6px; font: inherit; }
+.ls-empty { padding: 28px 0; border-block: 1px solid var(--line); }
+.ls-empty h2 { font-size: 1.1rem; margin-bottom: 6px; }
+.ls-status:not(:empty) { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.ls-error:not(:empty) { color: var(--ink); border-inline-start: 3px solid var(--control-border); padding-inline-start: 10px; }
+.ls-table { overflow-x: auto; min-width: 0; }
+.ls-table td { overflow-wrap: anywhere; }
+.ls-table .ac-rowname { font: inherit; color: var(--forest); }
+.ls-table .ac-rowname:hover { text-decoration: underline; }
+.ls-status:empty, .ls-history:empty, .ls-sample-result:empty { display: none; }
+.ls-panel .ac-kv { margin: 0; }
+.ls-back { font-size: 1.2rem; line-height: 1; padding: 8px 11px; }
+.ls-policy { border-top: 1px solid var(--line); padding-top: 12px; }
+.ls-policy summary { cursor: pointer; font-weight: 600; }
+.ls-policy[open] > :not(summary) { margin-top: 12px; }
+.ls-page > .ls-panel .ls-filters { border: 0; padding: 0; }
+@media (max-width: 640px) { .ls-grid { grid-template-columns: minmax(0,1fr); } }

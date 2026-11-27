@@ -181,7 +181,7 @@
       original.set(ds.id,current);
       const assigned = domain ? current === definition.id : current.includes(definition.id);
       const classification = domain ? (names.get(current) || 'Unassigned') : (current.map(id => names.get(id) || id).join(', ') || 'None');
-      const source = [sourceNames.get(ds.sourceId) || ds.sourceId,ds.asset].filter(Boolean).join(' / ');
+      const source = [sourceNames.get(ds.sourceId) || ds.sourceName || ds.sourceId,ds.asset].filter(Boolean).join(' / ');
       const location = [ds.layer,paths.get(ds.folderId) || 'Unfiled',source].filter(Boolean).join(' · ');
       const notes = [location,assigned ? 'Already assigned here' : (domain ? 'Domain · ' : 'Subjects · ') + classification];
       return {id:ds.id,name:ds.name,folderId:ds.folderId,notes,disabled:assigned,search:[ds.name,ds.id,location,classification].join(' ').toLowerCase()};

@@ -1,6 +1,6 @@
 # Data workspace
 
-Open the frontend's `index.html` and choose **Data**. Use the sidebar to switch between sources, storage destinations, datasets, jobs, taxonomy and archives.
+Start the local workbench and open **Data → Sources**. The Sources page uses the PostgreSQL backend. The other Data menus use the browser's dataset workspace. See the [backend setup and permissions](../../ai-center-backend/README.md).
 
 ## 1. Navigation
 
@@ -20,45 +20,47 @@ Data                                 top navigation
 ├─ Taxonomy                           sidebar
 │  ├─ Domains → Domain definitions, totals and assigned assets
 │  ├─ Subjects → Subject definitions, totals and tagged assets
-│  └─ Coverage → Counts for classifications in use
+│  └─ Matrix → Active dataset counts by domain and subject
 └─ Archive                            sidebar
    └─ Archived datasets → Restore
 ```
 
-Each dataset or source can have one optional **Domain** and any number of **Subjects**. In **Taxonomy**, use **Add datasets** on a domain to set its members’ primary domain, or on a subject to add that topic to their existing subjects. Each vocabulary has its own **Unassigned** folder. **Coverage** summarizes classifications in use. A dataset’s **Overview** edits the same domain and subject assignments independently.
+Each dataset or source can have one optional **Domain** and any number of **Subjects**. In **Taxonomy**, use **Add datasets** on a domain to set its members’ primary domain, or on a subject to add that topic to their existing subjects. Each vocabulary has its own **Unassigned** folder. A dataset’s **Overview** edits the same domain and subject assignments independently.
 
-**Sources** owns connection configuration and inventory. The database editor supports PostgreSQL, MySQL, SQL Server and SQLite. Network database profiles save the address, database and username. The password input is transient. Tests in this browser demo validate the profile using sample data. For a **Managed folder**, set a root and optionally a subdirectory, select allowed extensions and a parser, and enable recursion when required. File enumeration is simulated.
+**Matrix** shows domains as rows and subjects as columns. Each cell counts active datasets and displays **0** when none match. A dataset with several subjects counts once in each corresponding column. **No domain** and **No subjects** identify missing assignments. A dataset missing both counts where that row and column meet.
+
+**Sources** manages real PostgreSQL connections. Test a draft with a one-time password, then explicitly save credentials for background operations. Run a catalog sync to discover tables and views. Row previews are masked by default. Viewing authorized original values requires the corresponding permission and approved columns.
 
 ## 2. Submenu responsibilities
 
 | Submenu | Purpose | Managed objects | Primary actions |
 |---|---|---|---|
-| Sources | Establish where data comes from and check connectivity. | Database, file, folder and URL connections, exposed assets and sync health | Connect, test, sync and preview. |
+| Sources | Establish where data comes from and check connectivity. | PostgreSQL connections, catalog snapshots and sync health | Connect, test, sync and preview. |
 | Storages | Define where datasets are written. | Named storage locations and the active or archived datasets using them | Configure a destination by type, test its settings, inspect usage and remove an unused location. |
 | Datasets | Prepare warehouse records and build searchable collections. | Raw and detail layers, upstream assets, storage, transformations, schedules and indexes | Create a layer or dataset, materialize and export rows, explore lineage, schedule jobs, build retrieval and archive. |
-| Jobs | Investigate operations across sources and datasets. | Run history, failure details, retry attempts and schedule inventory | Filter by job type or status, inspect results, retry a failure or edit a dataset schedule within Jobs. |
-| Taxonomy | Classify assets by business area and topic. | Domain and subject definitions, asset assignments and usage counts | Define a domain or subject, classify assets singly or in bulk and review coverage. |
+| Jobs | Investigate local dataset operations. | Dataset run history, failure details, retry attempts and schedule inventory | Filter by job type or status, inspect results, retry a failure or edit a dataset schedule. |
+| Taxonomy | Classify assets by business area and topic. | Domain and subject definitions, asset assignments and usage counts | Define a domain or subject, classify assets singly or in bulk and compare active dataset counts in the matrix. |
 | Archive | Find older collections and return them to active use. | Archived datasets, retained documents, configuration and storage references | Search the archive and restore a dataset. |
 
 ## 3. Try the lifecycle
 
-1. Open **Sources → Anbennar mission notes → Connection**. Test the connection, sync the inventory and review its linked dataset names. Select **Datasets** from the sidebar and open **Mission reference** to see the source asset and storage destination. To try a different pairing, choose the **Create dataset** icon in the folder rail.
-2. On **Overview**, refresh the existing dataset or ingest a newly created raw dataset. Select the **Schedule** tab to choose an operation and recurrence. **Jobs → Dataset schedules** lists upcoming runs and offers **Schedule a job**. For a failure example, filter **Job history** by **Failed** and retry the sample mission refresh. The result identifies the new attempt. Open that attempt from the history list.
+1. Open **Sources** and sign in. An empty workspace has no connections. Add your PostgreSQL source, test its connection, save its credentials and sync the catalog. Open a published table to inspect its fields and permitted preview.
+2. Open **Datasets → Reign detail** to try a local warehouse workflow. Refresh the detail dataset from **Overview** to materialize the retained upstream rows. Select the **Schedule** tab to choose an operation and recurrence. **Jobs → Dataset schedules** lists upcoming runs. Source sync status is available in **Sources**.
 3. For **Mission reference**, choose indexed documents under **Documents**. In **Retrieval**, configure parsing, chunking, embeddings and index type, then build the index. Try a document search in **Data preview**. Changing the document selection makes the index **Rebuild required**. For **Reign detail**, use **Retrieval** to choose filter and return fields and add an equality index on `country_tag`. In **Data preview**, try `country_tag = FRA`, `start_date ≤ 1444-11-11`, and `end_date > 1444-11-11` to retrieve Charles VII and the source row.
-4. Open **Taxonomy → Subjects** and choose **Add datasets** beside **Dynastic succession**. Select **Reign detail** and save. In a fresh workspace its **Overview** now shows the domain **Governance & succession** and two subjects, **Monarchs and reigns** and **Dynastic succession**. You can change the domain while keeping both topics. **Coverage** reflects the saved assignments.
+4. Open **Taxonomy → Subjects** and choose **Add datasets** beside **Dynastic succession**. Select **Reign detail** and save. In a fresh workspace its **Overview** now shows the domain **Governance & succession** and two subjects, **Monarchs and reigns** and **Dynastic succession**. In **Matrix**, the dataset counts once in each of those subject columns on the **Governance & succession** row. Changing just its domain moves both counts to the new row.
 5. On a dataset's **Overview**, choose **Archive dataset**. Its data, source link, storage choice, configuration, classifications and history are retained. Its schedule stops. Archiving disables structured queries and withdraws document indexes. **Archive → Restore** makes retained table rows available for queries again. Restore and rebuild a document index to resume RAG. Re-enable schedules separately.
 
-The demo stores changes in the browser. The named storage locations represent logical destinations. Connection checks, imports and index builds operate on local sample records. Document searches match text in the last published index. Structured queries apply all configured conditions to current materialized rows and return the selected columns and source locator. Model and index selections demonstrate configuration and rebuild behavior. The local scheduler checks while the page is open and runs one catch-up job on reopening when a schedule is overdue.
+The backend persists source configuration and catalog snapshots in PostgreSQL. Other menus keep their demo data in the browser. Existing datasets retain their materialized rows, recorded source names and lineage after local demo connections are removed. Document searches match text in the last published index. Structured queries apply all configured conditions to current materialized rows. The local dataset scheduler checks while the page is open and runs one catch-up job on reopening when a schedule is overdue.
 
 ## Warehouse records and lineage
 
-Under **Datasets**, the **Import tables** icon in the folder rail opens a separate page. Choose a database, select one or more tables across searches, and choose a raw layer, storage location and folder. Each table becomes a populated dataset with its own lineage and ingestion job. An existing or archived import is marked in the inventory. All selected tables must validate for the batch to be imported.
+The **Datasets → Import tables** screen currently belongs to the local demo. Importing tables from a backend-managed connection requires the Datasets integration. Existing ODS and DWD examples remain available for previews, lineage and exports.
 
 In **Storages → Add storage**, choose a type. A local folder takes a path. S3 takes a bucket and an optional key prefix. For PostgreSQL, enter the host, port, database, schema and username in separate fields. The password field is temporary. **Test connection** validates the settings locally in this frontend demo. A successful test confirms the profile format. Server reachability, authentication and write access require a live backend.
 
 The saved destination becomes available when creating, importing or editing datasets. Open a location to see which active and archived datasets reference it. You can rename a location while it is in use. Changing its address or deleting it requires moving those references first.
 
-Open **Data preview** on a dataset to inspect its stored contents. It requests up to 15 records or documents per page. Choose a page below the results to fetch it. Open a row for its complete values or a document for its text and source locator. **Download records** exports the entire active dataset. The bundled **Mission reference** sample has 18 entries, so page 2 starts at entry 16. In an existing workspace, **Overview → Refresh now** imports the updated sample.
+Open **Data preview** on a dataset to inspect its stored contents. It requests up to 15 records or documents per page. Choose a page below the results to fetch it. Open a row for its complete values or a document for its text and source locator. **Download records** exports the entire active dataset. The bundled **Mission reference** example has 18 entries, so page 2 starts at entry 16.
 
 **Datasets → Folders** organizes the catalog into nested directories. Choose a parent to browse its active datasets and those in its subfolders. Search and layer filters apply within that scope. The catalog shows 25 results per page. Open **⋯** on **All datasets** to create a top-level folder. Each folder’s **⋯** menu lets you rename it, create a subfolder, move the branch or remove an empty folder. Archived datasets count as folder contents.
 

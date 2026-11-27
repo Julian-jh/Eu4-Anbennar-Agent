@@ -22,7 +22,7 @@
     const inputNames = new Map(sources.map(s => [s.id,s.name]));
     const upstreamNames = new Map(datasets.map(d => [d.id,d.name]));
     const storageNames = new Map(locations.map(s => [s.id,s.name]));
-    const inputName = d => d.upstreamId ? upstreamNames.get(d.upstreamId) : inputNames.get(d.sourceId);
+    const inputName = d => d.upstreamId ? upstreamNames.get(d.upstreamId) : inputNames.get(d.sourceId) || d.sourceName;
     const folderPath = d => paths.get(d.folderId || '') || 'Unfiled';
     const query = node('input');
     query.type = 'search';

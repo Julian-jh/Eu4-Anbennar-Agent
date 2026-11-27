@@ -63,6 +63,10 @@
     for (const ds of snapshot.datasets) {
       const own = graph.get(datasetKey(ds.id));
       const input = ds.upstreamId ? datasetKey(ds.upstreamId) : assetKey(ds.sourceId, ds.asset);
+      if (!ds.upstreamId && ds.sourceId && ds.asset && !graph.has(input)) {
+        const source = {id:ds.sourceId,name:ds.sourceName || ds.sourceId};
+        add(input,{kind:'asset',title:ds.asset,subtitle:source.name,source,asset:{object:ds.asset},historical:true});
+      }
       link(graph.get(input), own);
       if (ds.archived || ds.dataType === 'table') continue;
       const built = Boolean(ds.indexedAt || ds.buildSignature);
@@ -159,8 +163,11 @@
       const head = el('div',null,'ln-inspect-head');
       head.append(el('span',identity[n.kind],'dm-badge'),title);
       if (n.kind === 'asset') {
-        prop('Source type',n.source.format || n.source.kind);
-        prop('Location',n.source.loc || 'Unavailable');
+        if (n.historical) prop('Origin','Recorded at ingestion');
+        else {
+          prop('Source type',n.source.format || n.source.kind);
+          prop('Location',n.source.loc || 'Unavailable');
+        }
         prop('Asset',n.asset.object);
         prop('Downstream datasets',n.children.length);
       } else if (n.kind === 'dataset') {

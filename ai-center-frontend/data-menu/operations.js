@@ -30,7 +30,8 @@
     const datasets = data.datasets;
     const active = datasets.filter(dataset => !dataset.archived);
     const idOf = (rows, id) => rows.find(row => row.id === id);
-    const sourceName = id => idOf(ctx.sources, id)?.name || id || '—';
+    const historicalNames = new Map(datasets.filter(d => d.sourceName).map(d => [d.sourceId,d.sourceName]));
+    const sourceName = id => idOf(ctx.sources, id)?.name || historicalNames.get(id) || id || '—';
     const jobDataset = job => job.deletedDatasetId ? job.deletedDatasetName + ' (deleted)' : idOf(datasets,job.datasetId)?.name;
     const assetName = job => jobDataset(job) || sourceName(job.sourceId);
     const canRetry = job => job.status === 'Failed' && !job.deletedDatasetId && (!job.datasetId || active.some(ds => ds.id === job.datasetId));

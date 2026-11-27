@@ -15,14 +15,14 @@
   <link rel="stylesheet" href="data-menu/folders.css">
   <link rel="stylesheet" href="data-menu/taxonomy.css">
   <link rel="stylesheet" href="data-menu/folder-picker.css">
+  <link rel="stylesheet" href="data-menu/live-sources.css">
   <link rel="stylesheet" href="theme.css">
-  <script src="data-menu/source-profile.js" defer></script>
   <script src="data-menu/storage-profile.js" defer></script>
-  <script src="data-menu/source-editor.js" defer></script>
+  <script src="data-menu/sources-api.js" defer></script>
+  <script src="data-menu/live-sources.js" defer></script>
   <script src="data-menu/schedule.js" defer></script>
   <script src="data-menu/store.js" defer></script>
   <script src="data-menu/retrieval.js" defer></script>
-  <script src="data-menu/sources.js" defer></script>
   <script src="data-menu/storages.js" defer></script>
   <script src="data-menu/lineage.js" defer></script>
   <script src="data-menu/folder-picker.js" defer></script>
@@ -39,7 +39,7 @@
   <script src="app.js" defer></script>
 </head>
 <body>
-<div id="ac-workbench" aria-label="AI Center demo workspace">
+<div id="ac-workbench" aria-label="AI Center workspace">
 
 <header class="ac-top">
   <div class="ac-topgroup ac-identity"><strong class="ac-brand"><span class="ac-mark" aria-hidden="true"><span></span><span></span><span></span></span>AI Center</strong><span class="ac-project">EU4 &amp; Anbennar</span></div>
@@ -50,32 +50,13 @@
     <button type="button" class="ac-nav" data-area="api" aria-label="External APIs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-5 4 5 4m8-8 5 4-5 4m-3-11-3 14"/></svg><span class="ac-nav-label" aria-hidden="true">External APIs</span></button>
     <button type="button" class="ac-nav" data-area="settings" aria-label="Workspace settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 3-.6 2.2-1.7 1-2.2-.6-2.5 4.3 1.6 1.6v1l-1.6 1.6 2.5 4.3 2.2-.6 1.7 1 .6 2.2h5l.6-2.2 1.7-1 2.2.6 2.5-4.3-1.6-1.6v-1l1.6-1.6L19 5.6l-2.2.6-1.7-1-.6-2.2Z"/><circle cx="12" cy="12" r="3"/></svg><span class="ac-nav-label" aria-hidden="true">Work<wbr>space settings</span></button>
   </nav>
-  <div class="ac-topgroup ac-utilities"><span class="ac-sample">Demo workspace</span><label class="ac-theme-picker"><span>Appearance</span><select id="ac-theme" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><span class="ac-person"><span class="ac-avatar" aria-hidden="true">W</span>Workspace owner</span></div>
+  <div class="ac-topgroup ac-utilities"><span class="ac-sample" id="ac-workspace-mode">Local workspace</span><label class="ac-theme-picker"><span>Appearance</span><select id="ac-theme" aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><span class="ac-person"><span class="ac-avatar" aria-hidden="true">W</span>Workspace owner</span></div>
 </header>
 <div class="ac-shell">
   <nav class="ac-secondary-nav" aria-label="Data sections" id="ac-sections"><span class="dm-rail-title" aria-hidden="true">Data workspace</span></nav>
   <aside id="ac-folder-rail" class="dm-folder-rail" aria-label="Dataset catalog navigation" hidden></aside>
   <main aria-label="AI Center work area">
-    <section class="ac-page" data-page="sources" aria-label="Sources">
-      <h1 class="sr-only" data-view="catalog">Sources</h1>
-      <div class="ac-blockhead ac-asset-heading" data-view="connection preview"><h1 id="ac-source-name">Source</h1><span id="ac-source-type" class="ac-tag"></span></div>
-      <div class="corpus-grid" data-view="catalog" role="group" aria-label="Filter sources by corpus">
-        <button type="button" data-corpus="EU4" aria-pressed="false"><span class="corpus-icon eu4" aria-hidden="true">Ⅳ</span><span><strong>EU4</strong><small data-corpus-count="EU4"></small></span></button>
-        <button type="button" data-corpus="Anbennar" aria-pressed="false"><span class="corpus-icon anbennar" aria-hidden="true">◇</span><span><strong>Anbennar</strong><small data-corpus-count="Anbennar"></small></span></button>
-        <button type="button" data-corpus="Real History" aria-pressed="false"><span class="corpus-icon history" aria-hidden="true">§</span><span><strong>Real History</strong><small data-corpus-count="Real History"></small></span></button>
-      </div>
-      <div class="catalog-panel" data-view="catalog">
-        <div class="catalog-tools"><div class="ac-inline"><button class="ac-btn ac-primary" type="button" data-act="add"><span aria-hidden="true">＋</span> Add source</button><span id="ac-source-count" aria-live="polite"></span></div>
-          <div class="catalog-filter"><label class="search-field"><span aria-hidden="true" class="search-icon"></span><input id="ac-search" type="search" aria-label="Search sources" placeholder="Search sources"></label><label class="ac-picker"><span class="sr-only">Source type</span><select id="ac-source-filter"><option value="all">All types</option><option value="database">Database</option><option value="url">API / URL</option><option value="file">File</option><option value="folder">Folder</option></select></label><button type="button" class="ac-link" id="ac-clear-filters" hidden>Clear filters</button></div></div>
-        <div class="ac-sheet"><table class="ac-data ac-source-table"><thead><tr><th scope="col">Source</th><th scope="col">Corpus</th><th scope="col">Type</th><th scope="col">Last sync</th><th scope="col"><span class="sr-only">Open source</span></th></tr></thead><tbody id="ac-catalog"></tbody></table></div>
-      </div>
-      <div class="dm-tabs" data-view="connection preview" role="group" aria-label="Source views"><button type="button" data-source-view="catalog">All sources</button><button type="button" id="ac-tab-connection" data-source-view="connection">Connection</button><button type="button" id="ac-tab-preview" data-source-view="preview">Asset preview</button></div>
-      <div class="ac-linebox" data-view="connection preview" aria-label="Selected source">
-        <label class="ac-picker" id="ac-asset-picker" hidden>Asset <select id="ac-asset-select"></select></label>
-        <div id="ac-source-details"></div>
-      </div>
-      <div id="ac-source-ops" data-view="connection"></div>
-    </section>
+    <section class="ac-page" data-page="sources" aria-label="Sources"><div id="ac-live-sources"></div></section>
     <section class="ac-page" data-page="lifecycle" aria-label="Data lifecycle" hidden><div id="ac-data-work"></div></section>
     <section class="ac-page" data-page="semantic" aria-labelledby="ac-title-semantic" hidden>
       <h1 class="sr-only" id="ac-title-semantic">Semantic layer</h1>

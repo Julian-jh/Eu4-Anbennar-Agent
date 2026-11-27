@@ -342,7 +342,7 @@
       const layer = layerFor(active);
       const source = sources.find(s => s.id === active.sourceId);
       const location = locations.find(s => s.id === active.storage);
-      const sourceName = source?.name || 'Unavailable source';
+      const sourceName = source?.name || active.sourceName || 'Unavailable source';
       const inputRows = detail ? [
         ['Upstream raw dataset',upstream?.name || 'Unavailable dataset'],
         ['Row grain',active.grain],['Deduplication key',active.keyField || 'Keep all rows']
